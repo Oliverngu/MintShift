@@ -916,22 +916,34 @@
     return { employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings, _meta:{v:1, ts:Date.now()} };
   }
 
-  async function cloudLoad(){
-    try{
-      const r=await fetch(FN_GET,{cache:'no-store'});
-      if(!r.ok){ ui('GET '+r.status); return; }
-      const d=await r.json();
-      if(d && d.employees){
-        employees=d.employees??employees; roles=d.roles??roles; shifts=d.shifts??shifts;
-        weekStart=d.weekStart??weekStart; defOpenFrom=d.defOpenFrom??defOpenFrom; defOpenTo=d.defOpenTo??defOpenTo; daySettings=d.daySettings??daySettings;
-        if(typeof save==='function') save();
-        if(typeof renderAll==='function') renderAll();
-        ui('betöltve');
-      } else {
-        ui('üres');
-      }
-    }catch{ ui('offline'); }
-  }
+async function cloudLoad(){
+  try{
+    const r = await fetch(FN_GET, { cache:'no-store' });
+    if(!r.ok){ ui('GET '+r.status); return; }
+    const d = await r.json();
+    if(d && Object.keys(d).length){            // van felhő adat
+      employees   = d.employees   ?? employees;
+      roles       = d.roles       ?? roles;
+      shifts      = d.shifts      ?? shifts;
+      weekStart   = d.weekStart   ?? weekStart;
+      defOpenFrom = d.defOpenFrom ?? defOpenFrom;
+      defOpenTo   = d.defOpenTo   ?? defOpenTo;
+      daySettings = d.daySettings ?? daySettings;
+      if(typeof save==='function') save();
+      if(typeof renderAll==='function') renderAll();
+      ui('betöltve');
+    } else {
+      // Felhő üres → első indítás: push helyi -> felhő
+      await fetch(FN_SET, {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify(serialize()),
+        keepalive:true
+      });
+      ui('seedelve'); // mostantól a felhőben is ugyanaz van
+    }
+  }catch{ ui('offline'); }
+}
 
   async function cloudSaveNow(reason){
     try{
