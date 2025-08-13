@@ -947,10 +947,16 @@
   function schedule(reason){ clearTimeout(t); t=setTimeout(()=>cloudSaveNow(reason), 800); }
 
   // save() wrap
-  if(typeof window.save==='function'){
-    const orig=window.save;
-    window.save=function(){ const out=orig.apply(this,arguments); schedule('save()'); return out; };
-  }
+  // save() wrap
+if (typeof window.save === 'function') {
+  const orig = window.save;
+  window.save = function () {
+    const out = orig.apply(this, arguments);
+    cloudSaveNow('save()');     // ← közvetlen POST
+    schedule('save()');         // ← marad a debounce is
+    return out;
+  };
+}
 
   // tipikus műveletek wrap
   ['addShift','deleteShift','quickAdd','applyOpeningForDay','applyOpeningDefault'].forEach(n=>{
