@@ -913,38 +913,45 @@
   }
 
   function serialize(){
-    return { employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings, _meta:{v:1, ts:Date.now()} };
+    return {
+      employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings,
+      _meta:{v:1, ts:Date.now()}
+    };
   }
 
-async function cloudLoad(){
-  try{
-    const r = await fetch(FN_GET, { cache:'no-store' });
-    if(!r.ok){ ui('GET '+r.status); return; }
-    const d = await r.json();
-    if(d && Object.keys(d).length){            // van felhő adat
-      employees   = d.employees   ?? employees;
-      roles       = d.roles       ?? roles;
-      shifts      = d.shifts      ?? shifts;
-      weekStart   = d.weekStart   ?? weekStart;
-      defOpenFrom = d.defOpenFrom ?? defOpenFrom;
-      defOpenTo   = d.defOpenTo   ?? defOpenTo;
-      daySettings = d.daySettings ?? daySettings;
-      if(typeof save==='function') save();
-      if(typeof renderAll==='function') renderAll();
-      ui('betöltve');
-    } else {
-      // Felhő üres → első indítás: push helyi -> felhő
-      await fetch(FN_SET, {
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body: JSON.stringify(serialize()),
-        keepalive:true
-      });
-      ui('seedelve'); // mostantól a felhőben is ugyanaz van
-    }
-  }catch{ ui('offline'); }
-}
+  // Betöltéskor: ha van felhő adat → betölt; ha üres → seedel helyi állapottal
+  async function cloudLoad(){
+    try{
+      const r = await fetch(FN_GET, { cache:'no-store' });
+      if(!r.ok){ ui('GET '+r.status); return; }
+      const d = await r.json();
 
+      if(d && Object.keys(d).length){
+        employees   = d.employees   ?? employees;
+        roles       = d.roles       ?? roles;
+        shifts      = d.shifts      ?? shifts;
+        weekStart   = d.weekStart   ?? weekStart;
+        defOpenFrom = d.defOpenFrom ?? defOpenFrom;
+        defOpenTo   = d.defOpenTo   ?? defOpenTo;
+        daySettings = d.daySettings ?? daySettings;
+        if(typeof save==='function') save();
+        if(typeof renderAll==='function') renderAll();
+        ui('betöltve');
+      } else {
+        await fetch(FN_SET, {
+          method:'POST',
+          headers:{'content-type':'application/json'},
+          body: JSON.stringify(serialize()),
+          keepalive:true
+        });
+        if (typeof save==='function') save();
+        if (typeof renderAll==='function') renderAll();
+        ui('seedelve');
+      }
+    }catch{ ui('offline'); }
+  }
+
+  // Mentés most (azonnali POST)
   async function cloudSaveNow(reason){
     try{
       const r = await fetch(FN_SET, {
@@ -960,9 +967,11 @@ async function cloudLoad(){
       console.warn('[cloud] save error', e);
     }
   }
+
+  // Debounce-olt mentés időzítve
   function schedule(reason){
     clearTimeout(t);
-    t=setTimeout(()=>cloudSaveNow(reason), 800);
+    t = setTimeout(()=>cloudSaveNow(reason), 800);
   }
 
   // save() wrap – azonnali + debounce
@@ -993,10 +1002,21 @@ async function cloudLoad(){
     });
   }catch{}
 
-  // failsafe időzített mentés + kilépéskor is
+  // Kézi gombok (hasznos diagnosztika)
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const box=document.createElement('div');
+    box.style.cssText='position:fixed;right:10px;bottom:60px;display:flex;gap:6px;z-index:99999';
+    const b1=document.createElement('button'); b1.textContent='Felhő betöltés'; b1.onclick=cloudLoad;
+    const b2=document.createElement('button'); b2.textContent='Felhő mentés'; b2.onclick=()=>cloudSaveNow('manual');
+    [b1,b2].forEach(b=>{ b.style.cssText='padding:6px 10px;border-radius:10px;border:0;cursor:pointer' });
+    box.appendChild(b1); box.appendChild(b2); document.body.appendChild(box);
+  });
+
+  // Failsafe: 10 mp-enként ment, és kilépéskor is próbál
   setInterval(()=>cloudSaveNow('autosync'), 10000);
   window.addEventListener('beforeunload', ()=>{ try{ cloudSaveNow('beforeunload'); }catch{} });
 
+  // Indításkor betöltés
   document.addEventListener('DOMContentLoaded', cloudLoad);
 })();
 </script>
