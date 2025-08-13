@@ -7,15 +7,12 @@ const cors = {
 };
 
 export default async (request) => {
-  if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: cors });
-  }
-  if (request.method !== "POST") {
-    return new Response("Use POST", { status: 405, headers: cors });
-  }
+  const method = request.method;
+  if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  if (method !== "POST")    return new Response("Use POST", { status: 405, headers: cors });
 
-  const data = await request.text();  
-  await getStore("mintshift").set("state.json", data || "{}");
+  const bodyText = await request.text();              // Next-gen compatible
+  await getStore("mintshift").set("state.json", bodyText || "{}");
 
   return new Response("OK", { status: 200, headers: cors });
 };
