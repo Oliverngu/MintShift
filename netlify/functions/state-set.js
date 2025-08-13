@@ -7,24 +7,28 @@ const cors = {
 };
 
 export default async (event) => {
-  // Edge + Node kompatibilis mezők
+  // Edge (event.method) és Node (event.httpMethod) kompatibilis
   const method = event.method || event.httpMethod;
 
   // Preflight
   if (method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors });
   }
-
   if (method !== "POST") {
     return new Response("Use POST", { status: 405, headers: cors });
   }
 
   try {
-    const bodyText = typeof event.text === "function" ? await event.text() : (event.body || "{}");
+    // Edge: event.text(); Node: event.body
+    const bodyText = typeof event.text === "function"
+      ? await event.text()
+      : (event.body || "{}");
+
     const store = getStore("mintshift");
     await store.set("state.json", bodyText);
+
     return new Response("OK", { status: 200, headers: cors });
-  } catch (e) {
+  } catch {
     return new Response("Save failed", { status: 500, headers: cors });
   }
 };
