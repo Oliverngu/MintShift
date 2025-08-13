@@ -902,7 +902,7 @@
   let t=null;
 
   function serialize(){
-    return {employees,roles,shifts,weekStart,defOpenFrom,defOpenTo,daySettings,_meta:{v:1,ts:Date.now()}};
+    return { employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings, _meta:{v:1,ts:Date.now()} };
   }
 
   async function cloudLoad(){
@@ -911,97 +911,41 @@
       if(!r.ok) return;
       const d=await r.json();
       if(!d||!d.employees) return;
-      employees=d.employees||[];
-      roles=d.roles||roles;
-      shifts=d.shifts||[];
-      weekStart=d.weekStart||weekStart;
-      defOpenFrom=d.defOpenFrom||defOpenFrom;
-      defOpenTo=d.defOpenTo||defOpenTo;
-      daySettings=d.daySettings||daySettings;
-      save();        // cache-eld localStorage-ba is
-      renderAll();   // rajzold újra
+      employees=d.employees??employees; roles=d.roles??roles; shifts=d.shifts??shifts;
+      weekStart=d.weekStart??weekStart; defOpenFrom=d.defOpenFrom??defOpenFrom; defOpenTo=d.defOpenTo??defOpenTo; daySettings=d.daySettings??daySettings;
+      if(typeof save==='function') save(); if(typeof renderAll==='function') renderAll();
     }catch{}
   }
 
-  async function cloudSave(){
+  async function cloudSaveNow(src){
     try{
-      await fetch(FN_SET,{
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body: JSON.stringify(serialize())
-      });
-    }catch{}
+      await fetch(FN_SET,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(serialize())});
+      console.log('[cloud] saved',src||'');
+    }catch(e){ console.warn('[cloud] save error',e); }
   }
+  function schedule(src){ clearTimeout(t); t=setTimeout(()=>cloudSaveNow(src),1000); }
 
-  const _save=save;
-  window.save=function(){
-    _save.apply(null,arguments);
-    clearTimeout(t);
-    t=setTimeout(cloudSave,1000);
-  };
+  // wrap save()
+  if(typeof window.save==='function'){ const s=window.save; window.save=function(){ const r=s.apply(this,arguments); schedule('save()'); return r; }; }
+
+  // wrap tipikus műveletek ha léteznek
+  ['addShift','deleteShift','quickAdd','applyOpeningForDay','applyOpeningDefault'].forEach(n=>{
+    if(typeof window[n]==='function'){ const f=window[n]; window[n]=function(){ const r=f.apply(this,arguments); schedule(n+'()'); return r; }; }
+  });
+
+  // Proxy a shifts tömbre – bármilyen módosítás ment
+  try{
+    const mut=['push','splice','shift','unshift','pop','sort','reverse','fill','copyWithin'];
+    const base=shifts;
+    window.shifts=new Proxy(base,{
+      get(t,p,r){ const v=Reflect.get(t,p,r); if(typeof v==='function'&&mut.includes(p)) return (...a)=>{const res=v.apply(t,a); schedule('shifts.'+p); return res;}; return v; },
+      set(t,p,v,r){ const ok=Reflect.set(t,p,v,r); schedule('shifts set'); return ok; },
+      deleteProperty(t,p){ const ok=Reflect.deleteProperty(t,p); schedule('shifts del'); return ok; }
+    });
+  }catch{}
 
   document.addEventListener('DOMContentLoaded', cloudLoad);
 })();
 </script>
-</div>
-<script>
-(() => {
-  const FN_GET='/.netlify/functions/state-get';
-  const FN_SET='/.netlify/functions/state-set';
-  let t=null, badge=null;
-
-  function badgeSet(txt){
-    if(!badge){
-      badge=document.createElement('div');
-      badge.style.cssText='position:fixed;right:10px;bottom:10px;padding:6px 10px;border-radius:999px;background:#000b;color:#fff;font:12px system-ui;z-index:99999;opacity:.9';
-      document.body.appendChild(badge);
-    }
-    badge.textContent='Felhő: '+txt;
-  }
-
-  function serialize(){
-    return { employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings, _meta:{v:1,ts:Date.now()} };
-  }
-
-  async function cloudLoad(){
-    try{
-      const r = await fetch(FN_GET,{cache:'no-store'});
-      if(!r.ok) return badgeSet('GET '+r.status);
-      const d = await r.json();
-      if(d && d.employees){
-        employees   = d.employees   ?? employees;
-        roles       = d.roles       ?? roles;
-        shifts      = d.shifts      ?? shifts;
-        weekStart   = d.weekStart   ?? weekStart;
-        defOpenFrom = d.defOpenFrom ?? defOpenFrom;
-        defOpenTo   = d.defOpenTo   ?? defOpenTo;
-        daySettings = d.daySettings ?? daySettings;
-        if(typeof save==='function') save();
-        if(typeof renderAll==='function') renderAll();
-        badgeSet('betöltve');
-      } else {
-        badgeSet('üres');
-      }
-    }catch(e){ badgeSet('offline'); }
-  }
-
-  async function cloudSaveNow(src=''){
-    try{
-      const r = await fetch(FN_SET,{
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body: JSON.stringify(serialize())
-      });
-      badgeSet(r.ok ? 'mentve'+(src?` (${src})`:'') : 'hiba '+r.status);
-    }catch(e){ badgeSet('offline'); }
-  }
-
-  function scheduleCloudSave(src){
-    clearTimeout(t);
-    t=setTimeout(()=>cloudSaveNow(src), 1000); // debounce 1s
-  }
-
-  //
-</body>
 </html>
 
