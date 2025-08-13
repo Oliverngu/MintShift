@@ -895,19 +895,51 @@
   setTimeout(bindBtn, 500);
   setTimeout(bindBtn, 1500);
 })();
-</script>
-<div style="position: fixed; bottom: 10px; right: 10px; font-size: 14px; color: var(--muted); font-family: Arial, sans-serif; z-index: 9999;">
-    Shift Planner by Oliver Nguyen
 <script>
 (() => {
   const FN_GET='/.netlify/functions/state-get';
   const FN_SET='/.netlify/functions/state-set';
   let t=null;
-  function serialize(){ return {employees,roles,shifts,weekStart,defOpenFrom,defOpenTo,daySettings,_meta:{v:1,ts:Date.now()}};}
-  async function cloudLoad(){ try{ const r=await fetch(FN_GET,{cache:'no-store'}); if(!r.ok) return; const d=await r.json(); if(!d||!d.employees) return;
-    employees=d.employees||[]; roles=d.roles||roles; shifts=d.shifts||[]; weekStart=d.weekStart||weekStart; defOpenFrom=d.defOpenFrom||defOpenFrom; defOpenTo=d.defOpenTo||defOpenTo; daySettings=d.daySettings||daySettings; save(); renderAll(); }catch{} }
-  async function cloudSave(){ try{ await fetch(FN_SET,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(serialize())}); }catch{} }
-  const _save=save; window.save=function(){ _save.apply(null,arguments); clearTimeout(t); t=setTimeout(cloudSave,1000); };
+
+  function serialize(){
+    return {employees,roles,shifts,weekStart,defOpenFrom,defOpenTo,daySettings,_meta:{v:1,ts:Date.now()}};
+  }
+
+  async function cloudLoad(){
+    try{
+      const r=await fetch(FN_GET,{cache:'no-store'});
+      if(!r.ok) return;
+      const d=await r.json();
+      if(!d||!d.employees) return;
+      employees=d.employees||[];
+      roles=d.roles||roles;
+      shifts=d.shifts||[];
+      weekStart=d.weekStart||weekStart;
+      defOpenFrom=d.defOpenFrom||defOpenFrom;
+      defOpenTo=d.defOpenTo||defOpenTo;
+      daySettings=d.daySettings||daySettings;
+      save();        // cache-eld localStorage-ba is
+      renderAll();   // rajzold újra
+    }catch{}
+  }
+
+  async function cloudSave(){
+    try{
+      await fetch(FN_SET,{
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify(serialize())
+      });
+    }catch{}
+  }
+
+  const _save=save;
+  window.save=function(){
+    _save.apply(null,arguments);
+    clearTimeout(t);
+    t=setTimeout(cloudSave,1000);
+  };
+
   document.addEventListener('DOMContentLoaded', cloudLoad);
 })();
 </script>
