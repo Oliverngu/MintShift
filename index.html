@@ -896,6 +896,7 @@
   setTimeout(bindBtn, 1500);
 })();
 </script>
+<!-- MintShift – FELHŐ SZINKRON BLOKK (illesszd a legvégére, </html> ELÉ) -->
 <script>
 (() => {
   const FN_GET='/.netlify/functions/state-get';
@@ -927,45 +928,37 @@
         if(typeof renderAll==='function') renderAll();
         ui('betöltve');
       } else {
-        ui('üres'); // első futásnál oké
+        ui('üres');
       }
     }catch{ ui('offline'); }
   }
 
   async function cloudSaveNow(reason){
     try{
-      const r = await fetch(FN_SET,{
+      const r = await fetch(FN_SET, {
         method:'POST',
         headers:{'content-type':'application/json'},
-        body: JSON.stringify(serialize()),
+        : JSON.stringify(serialize()),
         keepalive:true
       });
       ui(r.ok ? ('mentve'+(reason?` (${reason})`:'')) : ('hiba '+r.status));
       console.log('[cloud] POST', r.status);
-    }catch(e){ ui('offline'); console.warn('[cloud] save error',e); }
+    }catch(e){ ui('offline'); }
   }
   function schedule(reason){ clearTimeout(t); t=setTimeout(()=>cloudSaveNow(reason), 800); }
 
-  // save() wrap
-  // save() wrap
-if (typeof window.save === 'function') {
-  const orig = window.save;
-  window.save = function () {
-    const out = orig.apply(this, arguments);
-    cloudSaveNow('save()');     // ← közvetlen POST
-    schedule('save()');         // ← marad a debounce is
-    return out;
-  };
-}
+  // save() wrap – azonnali + debounce
+  if (typeof window.save === 'function') {
+    const orig = window.save;
+    window.save = function () {
+      const out = orig.apply(this, arguments);
+      cloudSaveNow('save()');   // közvetlen
+      schedule('save()');       // késleltetett
+      return out;
+    };
+  }
 
-  // tipikus műveletek wrap
-  ['addShift','deleteShift','quickAdd','applyOpeningForDay','applyOpeningDefault'].forEach(n=>{
-    if(typeof window[n]==='function'){
-      const f=window[n]; window[n]=function(){ const out=f.apply(this,arguments); schedule(n+'()'); return out; };
-    }
-  });
-
-  // shifts Proxy – bármi változás → mentés
+  // shifts Proxy – minden változásnál ment
   try{
     const mut=['push','splice','shift','unshift','pop','sort','reverse','fill','copyWithin'];
     const base=shifts;
@@ -976,12 +969,13 @@ if (typeof window.save === 'function') {
     });
   }catch{}
 
-  // időzített „failsafe” sync 10 mp-enként
+  // failsafe időzített mentés
   setInterval(()=>cloudSaveNow('autosync'), 10000);
 
   document.addEventListener('DOMContentLoaded', cloudLoad);
   window.addEventListener('beforeunload', ()=>{ try{ cloudSaveNow('beforeunload'); }catch{} });
 })();
 </script>
+<!-- /FELHŐ SZINKRON BLOKK -->
 </html>
 
