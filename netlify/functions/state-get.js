@@ -1,4 +1,4 @@
-     import { getStore } from "@netlify/blobs";
+import { getStore } from "@netlify/blobs";
 
 export default async () => {
   const data = await getStore("mintshift").get("state.json");
