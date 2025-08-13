@@ -902,63 +902,97 @@
   const FN_SET='/.netlify/functions/state-set';
   let t=null;
 
+  // — Sorosítás a teljes állapot mentéséhez —
   function serialize(){
-    return { employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings, _meta:{v:1,ts:Date.now()} };
+    return {
+      employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings,
+      _meta:{v:1, ts:Date.now()}
+    };
   }
 
+  // — Induláskor felhőből tölt (ha van), majd render+localStorage —
   async function cloudLoad(){
     try{
-      const r=await fetch(FN_GET,{cache:'no-store'});
+      const r = await fetch(FN_GET, { cache:'no-store' });
       if(!r.ok) return;
-      const d=await r.json();
-      if(!d||!d.employees) return;
-      employees=d.employees??employees; roles=d.roles??roles; shifts=d.shifts??shifts;
-      weekStart=d.weekStart??weekStart; defOpenFrom=d.defOpenFrom??defOpenFrom; defOpenTo=d.defOpenTo??defOpenTo; daySettings=d.daySettings??daySettings;
-      if(typeof save==='function') save(); if(typeof renderAll==='function') renderAll();
+      const d = await r.json();
+      if(!d || !d.employees) return; // első futásnál üres lehet
+      employees   = d.employees   ?? employees;
+      roles       = d.roles       ?? roles;
+      shifts      = d.shifts      ?? shifts;
+      weekStart   = d.weekStart   ?? weekStart;
+      defOpenFrom = d.defOpenFrom ?? defOpenFrom;
+      defOpenTo   = d.defOpenTo   ?? defOpenTo;
+      daySettings = d.daySettings ?? daySettings;
+      if (typeof save === 'function') save();
+      if (typeof renderAll === 'function') renderAll();
     }catch{}
   }
 
-  async function cloudSaveNow(src){
+  // — Mentés felhőbe (keepalive: igaz kilépéskor is megpróbálja) —
+  async function cloudSaveNow(reason){
     try{
-      await fetch(FN_SET,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(serialize())});
-      console.log('[cloud] saved',src||'');
-    }catch(e){ console.warn('[cloud] save error',e); }
+      await fetch(FN_SET, {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify(serialize()),
+        keepalive: true
+      });
+      console.log('[cloud] saved', reason||'');
+    }catch(e){ console.warn('[cloud] save error', e); }
   }
-  function schedule(src){ clearTimeout(t); t=setTimeout(()=>cloudSaveNow(src),1000); }
 
-  // wrap save()
-  if(typeof window.save==='function'){ const s=window.save; window.save=function(){ const r=s.apply(this,arguments); schedule('save()'); return r; }; }
+  function schedule(reason){
+    clearTimeout(t);
+    t = setTimeout(()=>cloudSaveNow(reason), 800); // 0.8s debounce
+  }
 
-  // wrap tipikus műveletek ha léteznek
-  ['addShift','deleteShift','quickAdd','applyOpeningForDay','applyOpeningDefault'].forEach(n=>{
-    if(typeof window[n]==='function'){ const f=window[n]; window[n]=function(){ const r=f.apply(this,arguments); schedule(n+'()'); return r; }; }
+  // — A meglévő save() becsomagolása —
+  if (typeof window.save === 'function') {
+    const orig = window.save;
+    window.save = function(){
+      const out = orig.apply(this, arguments);
+      schedule('save()');
+      return out;
+    };
+  }
+
+  // — Tipikus műveletek becsomagolása (ha vannak a kódban) —
+  ['addShift','deleteShift','quickAdd','applyOpeningForDay','applyOpeningDefault']
+  .forEach(fn=>{
+    if (typeof window[fn] === 'function') {
+      const f = window[fn];
+      window[fn] = function(){
+        const out = f.apply(this, arguments);
+        schedule(fn+'()');
+        return out;
+      };
+    }
   });
 
-  // Proxy a shifts tömbre – bármilyen módosítás ment
+  // — shifts tömb Proxy: bármilyen módosítás → mentés —
   try{
-    const mut=['push','splice','shift','unshift','pop','sort','reverse','fill','copyWithin'];
-    const base=shifts;
-    window.shifts=new Proxy(base,{
-      get(t,p,r){ const v=Reflect.get(t,p,r); if(typeof v==='function'&&mut.includes(p)) return (...a)=>{const res=v.apply(t,a); schedule('shifts.'+p); return res;}; return v; },
-      set(t,p,v,r){ const ok=Reflect.set(t,p,v,r); schedule('shifts set'); return ok; },
-      deleteProperty(t,p){ const ok=Reflect.deleteProperty(t,p); schedule('shifts del'); return ok; }
+    const mut = ['push','splice','shift','unshift','pop','sort','reverse','fill','copyWithin'];
+    const base = shifts;
+    window.shifts = new Proxy(base, {
+      get(t,p,r){
+        const v = Reflect.get(t,p,r);
+        if (typeof v==='function' && mut.includes(p)) {
+          return (...a)=>{ const res=v.apply(t,a); schedule('shifts.'+p); return res; };
+        }
+        return v;
+      },
+      set(t,p,v,r){ const ok = Reflect.set(t,p,v,r); schedule('shifts set'); return ok; },
+      deleteProperty(t,p){ const ok = Reflect.deleteProperty(t,p); schedule('shifts del'); return ok; }
     });
   }catch{}
 
+  // — Oldal betöltésekor felhőből lehúz —
   document.addEventListener('DOMContentLoaded', cloudLoad);
+
+  // — Oldal elhagyásakor is megpróbál menteni —
+  window.addEventListener('beforeunload', ()=> { try{ cloudSaveNow('beforeunload'); }catch{} });
 })();
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.createElement('button');
-  btn.textContent = 'Felhő szinkron most';
-  btn.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999';
-  btn.onclick = () => fetch('/.netlify/functions/state-set', {
-    method:'POST', headers:{'content-type':'application/json'},
-    body: JSON.stringify({ employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings })
-  }).then(r=>console.log('SET status', r.status));
-  document.body.appendChild(btn);
-});
 </script>
 </html>
 
