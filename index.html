@@ -944,6 +944,69 @@
 })();
 </script>
 </div>
+<script>
+(() => {
+  const FN_GET='/.netlify/functions/state-get';
+  const FN_SET='/.netlify/functions/state-set';
+  let t=null;
+
+  function serialize(){
+    return {
+      employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings,
+      _meta:{v:1, ts:Date.now()}
+    };
+  }
+
+  async function cloudLoad(){
+    try{
+      const r = await fetch(FN_GET, { cache:'no-store' });
+      if(!r.ok) return;
+      const d = await r.json();
+      if(!d || !d.employees) return;      // első indításkor még üres lehet
+      employees   = d.employees   || [];
+      roles       = d.roles       || roles;
+      shifts      = d.shifts      || [];
+      weekStart   = d.weekStart   || weekStart;
+      defOpenFrom = d.defOpenFrom || defOpenFrom;
+      defOpenTo   = d.defOpenTo   || defOpenTo;
+      daySettings = d.daySettings || daySettings;
+      save();        // tükrözés localStorage-ba
+      renderAll();   // UI frissítés
+      console.log('[cloud] loaded');
+    }catch(e){ console.warn('[cloud] load error', e); }
+  }
+
+  async function cloudSaveNow(){
+    try{
+      const body = JSON.stringify(serialize());
+      const r = await fetch(FN_SET, {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body
+      });
+      console.log('[cloud] save', r.status);
+    }catch(e){ console.warn('[cloud] save error', e); }
+  }
+
+  // wrap-oljuk a meglévő save()-et
+  const __save = window.save;
+  window.save = function(){
+    __save.apply(null, arguments);
+    clearTimeout(t);
+    t = setTimeout(cloudSaveNow, 1000);   // 1 mp-es debounce
+  };
+
+  // manuális gomb (diagnosztika)
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.createElement('button');
+    btn.textContent = 'Felhő szinkron most';
+    btn.style.cssText = 'position:fixed;right:12px;bottom:12px;padding:8px 12px;border-radius:10px;z-index:9999';
+    btn.onclick = cloudSaveNow;
+    document.body.appendChild(btn);
+    cloudLoad();
+  });
+})();
+</script>
 </body>
 </html>
 
