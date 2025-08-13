@@ -896,7 +896,7 @@
   setTimeout(bindBtn, 1500);
 })();
 </script>
-<!-- MintShift – FELHŐ SZINKRON BLOKK (illesszd a legvégére, </html> ELÉ) -->
+<!-- MintShift – FELHŐ SZINKRON BLOKK -->
 <script>
 (() => {
   const FN_GET='/.netlify/functions/state-get';
@@ -938,14 +938,20 @@
       const r = await fetch(FN_SET, {
         method:'POST',
         headers:{'content-type':'application/json'},
-        : JSON.stringify(serialize()),
+        body: JSON.stringify(serialize()),
         keepalive:true
       });
       ui(r.ok ? ('mentve'+(reason?` (${reason})`:'')) : ('hiba '+r.status));
       console.log('[cloud] POST', r.status);
-    }catch(e){ ui('offline'); }
+    }catch(e){
+      ui('offline');
+      console.warn('[cloud] save error', e);
+    }
   }
-  function schedule(reason){ clearTimeout(t); t=setTimeout(()=>cloudSaveNow(reason), 800); }
+  function schedule(reason){
+    clearTimeout(t);
+    t=setTimeout(()=>cloudSaveNow(reason), 800);
+  }
 
   // save() wrap – azonnali + debounce
   if (typeof window.save === 'function') {
@@ -963,17 +969,23 @@
     const mut=['push','splice','shift','unshift','pop','sort','reverse','fill','copyWithin'];
     const base=shifts;
     window.shifts=new Proxy(base,{
-      get(t,p,r){ const v=Reflect.get(t,p,r); if(typeof v==='function'&&mut.includes(p)){ return (...a)=>{ const res=v.apply(t,a); schedule('shifts.'+p); return res; }; } return v; },
+      get(t,p,r){
+        const v=Reflect.get(t,p,r);
+        if(typeof v==='function'&&mut.includes(p)){
+          return (...a)=>{ const res=v.apply(t,a); schedule('shifts.'+p); return res; };
+        }
+        return v;
+      },
       set(t,p,v,r){ const ok=Reflect.set(t,p,v,r); schedule('shifts set'); return ok; },
       deleteProperty(t,p){ const ok=Reflect.deleteProperty(t,p); schedule('shifts del'); return ok; }
     });
   }catch{}
 
-  // failsafe időzített mentés
+  // failsafe időzített mentés + kilépéskor is
   setInterval(()=>cloudSaveNow('autosync'), 10000);
+  window.addEventListener('beforeunload', ()=>{ try{ cloudSaveNow('beforeunload'); }catch{} });
 
   document.addEventListener('DOMContentLoaded', cloudLoad);
-  window.addEventListener('beforeunload', ()=>{ try{ cloudSaveNow('beforeunload'); }catch{} });
 })();
 </script>
 <!-- /FELHŐ SZINKRON BLOKK -->
