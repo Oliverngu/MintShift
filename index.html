@@ -948,5 +948,17 @@
   document.addEventListener('DOMContentLoaded', cloudLoad);
 })();
 </script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.createElement('button');
+  btn.textContent = 'Felhő szinkron most';
+  btn.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999';
+  btn.onclick = () => fetch('/.netlify/functions/state-set', {
+    method:'POST', headers:{'content-type':'application/json'},
+    body: JSON.stringify({ employees, roles, shifts, weekStart, defOpenFrom, defOpenTo, daySettings })
+  }).then(r=>console.log('SET status', r.status));
+  document.body.appendChild(btn);
+});
+</script>
 </html>
 
