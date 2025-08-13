@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+
+<html data-theme="lightmint" lang="hu">
+<head>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Shift Planner</title>
+<style>
+  /* ===== THEME TOKENS ===== */
+  :root{
+    --bg: #ffffff;
+    --fg: #111111;
+    --muted: rgba(0,0,0,0.6);
+    --card-bg: #ffffff;
+    --card-border: #e5e7eb;
+    --input-bg:#ffffff;
+    --input-border:#d1d5db;
+    --accent:#10b981; /* mint */
+    --accent-weak:#d1fae5;
+    --table-head:#f9fafb;
+    color-scheme: light;
+  }
+  html[data-theme="lightmint"]{
+    --bg: #f7fffb;
+    --fg: #0b1220;
+    --muted: rgba(11,18,32,0.65);
+    --card-bg: #ffffff;
+    --card-border: #d9efe6;
+    --input-bg:#ffffff;
+    --input-border:#cfe9de;
+    --accent:#10b981; /* mint green accent */
+    --accent-weak:#d1fae5;
+    --table-head:#effcf6;
+    color-scheme: light;
+  }
+  html[data-theme="dark"]{
+    --bg: #014d40; /* emerald green dark */
+    --fg: #e7ecef;
+    --muted: rgba(231,236,239,0.65);
+    --card-bg: #025f4e; /* slightly lighter emerald */
+    --card-border: #037d65;
+    --input-bg:#014d40;
+    --input-border:#037d65;
+    --accent:#10b981; /* mint accent */
+    --accent-weak:#046c54;
+    --table-head:#025f4e;
+    color-scheme: dark;
+  }
+  html[data-theme="elegant"]{
+    --bg: #025f4e;            /* emerald green dark mint */
+    --fg: #f3f1e7;            /* warm ivory */
+    --muted: rgba(243,241,231,0.7);
+    --card-bg: #037d65;
+    --card-border: #049b7d;
+    --input-bg:#025f4e;
+    --input-border:#049b7d;
+    --accent:#d4af37;         /* gold accent */
+    --accent-weak:#2a2413;    /* rich gold tint */
+    --table-head:#037d65;
+    color-scheme: dark;
+  }
+
+  /* ===== RESET & BASE ===== */
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial; font-family: 'Raleway', sans-serif;
+       background:var(--bg);color:var(--fg)}
+  .wrap{max-width:1200px;margin:24px auto;padding:16px}
+  .card{border:1px solid var(--card-border);border-radius:16px;padding:16px;background:var(--card-bg);margin-bottom:16px;transition:background .2s,border-color .2s}
+  .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  label{font-size:12px;opacity:.8;margin-right:6px;color:var(--muted)}
+  input,select,button{padding:8px;border:1px solid var(--input-border);border-radius:8px;background:var(--input-bg);color:var(--fg)}
+  button{cursor:pointer}
+  table{border-collapse:collapse;width:100%;background:transparent;color:var(--fg)}
+  th,td{border:1px solid var(--card-border);padding:.5rem;text-align:center}
+  thead tr{background:var(--table-head)}
+  .left{text-align:left}
+  .muted{font-size:12px;color:var(--muted)}
+
+  /* Headcount colors remain meaningful across themes */
+  .c0{background:#ef4444;color:#fff;}      /* Piros: nincs beosztott */
+  .c1{background:#c2410c;color:#fff;}      /* Sötét narancs: kevés beosztott */
+  .c2{background:#fde047;color:#111;}      /* Sárga: felülvizsgálandó létszám */
+  .c3{background:#22c55e;color:#fff;}      /* Zöld: megfelelő */
+
+  .hidden{display:none}
+  .tabs{display:flex;gap:8px;margin-top:8px}
+  .tabbtn{padding:8px 12px;border:1px solid var(--input-border);border-radius:8px;background:var(--input-bg);cursor:pointer;color:var(--fg)}
+  .tabbtn.active{background:var(--accent);color:#0b1220;border-color:transparent}
+  html[data-theme="dark"] .tabbtn.active,
+  html[data-theme="elegant"] .tabbtn.active{ color:#0b0f14 }
+
+  .admin-toolbar{display:flex;gap:8px;align-items:center;margin:8px 0}
+  table.clean{border-collapse:collapse;width:100%}
+  table.clean th, table.clean td{border:1px solid var(--card-border);padding:.5rem;text-align:left}
+
+  /* ===== THEME SWITCHER (top-right) ===== */
+  .theme-switcher{
+    position:fixed; right:16px; top:12px; z-index:9999;
+    display:flex; align-items:center; gap:8px; font-size:14px; user-select:none;
+    background:var(--card-bg); border:1px solid var(--card-border); padding:6px 10px; border-radius:12px;
+    box-shadow: 0 6px 22px rgba(0,0,0,.08);
+  }
+  .theme-switcher .label{color:var(--muted); margin-right:2px}
+  .theme-dot{
+    width:22px; height:22px; border-radius:999px; border:2px solid #a1e6c5;
+    display:inline-block; cursor:pointer; outline:none; transition:transform .12s;
+  }
+  .theme-dot:active{ transform:scale(.95) }
+  /* Fixed mint-based colors for representation */
+  .dot-mint{ background:linear-gradient(135deg, #b7f5d1, #10b981) }
+  .dot-dark{ background:linear-gradient(135deg, #6de3b9, #1e3a8a) }
+  .dot-elegant{ background:linear-gradient(135deg, #b3f5ce, #d4af37) }
+  .theme-dot.is-active{ box-shadow:0 0 0 2px #10b981 inset }
+
+  button {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  button:hover {
+    filter: brightness(1.1);
+  }
+  button:active {
+    transform: scale(0.97);
+  }
+  /* Disabled buttons */
+  button:disabled {
+    background: var(--accent);
+    color: #fff;
+    opacity: .55;
+    cursor: not-allowed;
+    filter: none;
+  }
+</style>
+</head>
+<body>
+<!-- Theme Switcher -->
+<div aria-label="Téma választó" class="theme-switcher" role="group">
+<span class="label">Téma:</span>
+<button aria-label="Világos menta" class="theme-dot dot-mint" data-theme="lightmint" title="Világos menta"></button>
+<button aria-label="Sötét" class="theme-dot dot-dark" data-theme="dark" title="Sötét"></button>
+<button aria-label="Elegáns arany" class="theme-dot dot-elegant" data-theme="elegant" title="Elegáns arany"></button>
+</div>
+<div class="wrap">
+<div class="card">
+<h1 style="margin:0; display:flex; align-items:center;"><img src="mintshift_logo.png" alt="MintShift Logo" style="height:95px;vertical-align:middle;margin-right:12px;"> Shift Planner</h1><button id="exportXlsxBtn" style="margin-left:12px;padding:8px 12px;font-weight:600;border-radius:8px;border:0; color:#fff">Letöltés XLSX (sablon szerint)</button>
+<div class="muted">Adatok a böngésző <code>localStorage</code>-ben. Nincs külső könyvtár.</div>
+</div>
+<!-- Opening hours: default + single dropdown override editor -->
+<div class="tabs">
+<button class="tabbtn active" id="tabMain">Beosztás</button>
+<button class="tabbtn" id="tabAdmin">Admin</button>
+</div>
+<div id="panelMain">
+<div class="card">
+<h2 style="margin:0 0 8px 0">Nyitvatartás beállítása (opcionálisan napokra)</h2>
+<div class="row" style="margin-bottom:8px">
+<div>
+<label for="defOpenFrom">Alap nyitás</label><br/>
+<input id="defOpenFrom" type="time" value="11:00"/>
+</div>
+<div>
+<label for="defOpenTo">Alap zárás</label><br/>
+<input id="defOpenTo" type="time" value="00:00"/>
+</div>
+<div class="muted">A színezés csak a nyitvatartási sávban <b>+1 óra</b> (nyitás előtt és zárás után is 1 óra).</div>
+</div>
+<div class="muted" style="margin:8px 0">
+      Napokra eltérő nyitvatartás: válassz egy napot a lenyílóból, majd engedélyezd és állíts be nyitás/zárás időt.
+      Ha nincs engedélyezve, az <b>alap</b> nyitvatartás érvényesül.
+    </div>
+<div class="row">
+<select id="daySelector">
+<option value="">Válassz napot...</option>
+<option value="mon">Hétfő</option>
+<option value="tue">Kedd</option>
+<option value="wed">Szerda</option>
+<option value="thu">Csütörtök</option>
+<option value="fri">Péntek</option>
+<option value="sat">Szombat</option>
+<option value="sun">Vasárnap</option>
+</select>
+<label><input id="dayEnable" type="checkbox"/> Eltérés engedélyezése</label>
+<label>Nyitás <input disabled="" id="dayFrom" type="time"/></label>
+<label>Zárás <input disabled="" id="dayTo" type="time"/></label>
+<button id="saveDay">Mentés</button>
+</div>
+</div>
+<!-- Week + Quick add -->
+<div class="card">
+<div class="row">
+<div>
+<label for="weekStart">Hét kezdete</label><br/>
+<input id="weekStart" type="date"/>
+</div>
+<div>
+<label>Gyors műszak hozzáadás</label><br/>
+<select id="emp"></select>
+<select id="role"></select>
+<input id="date" type="date"/>
+<input id="start" type="time" value="10:00"/>
+<input id="end" type="time" value="18:00"/>
+<button id="addShift">Hozzáadás</button>
+</div>
+</div>
+</div>
+<!-- Employees -->
+<div class="card hidden">
+<h2 style="margin:0 0 8px 0">Munkatársak</h2>
+<div class="row">
+<input id="newEmp" placeholder="Új munkatárs neve"/>
+<input id="wage" min="0" placeholder="Órabér (opcionális)" step="50" type="number"/>
+<button id="addEmp">Hozzáadás</button>
+</div>
+<div class="muted" id="empList" style="margin-top:8px"></div>
+</div>
+<!-- Roles -->
+<div class="card hidden">
+<h2 style="margin:0 0 8px 0">Munkakörök</h2>
+<div class="row">
+<input id="newRole" placeholder="Új munkakör"/>
+<button id="addRole">Hozzáadás</button>
+</div>
+<div class="muted" id="roleList" style="margin-top:8px"></div>
+</div>
+<!-- Shifts table -->
+<div class="card">
+<h2 style="margin:0 0 8px 0">Heti Beosztás</h2>
+<div style="overflow:auto">
+<table id="shiftTable">
+<thead>
+<tr>
+<th class="left">Dátum</th>
+<th class="left">Nap</th>
+<th class="left">Munkatárs</th>
+<th class="left">Munkakör</th>
+<th>Kezdés</th>
+<th>Vége</th>
+<th>Óra</th>
+<th>Törlés</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+<!-- Headcount by hour -->
+<div class="card">
+<h2 style="margin:0 0 8px 0">Létszám óránként (napokra bontva)</h2>
+<div style="overflow:auto">
+<table id="headTable">
+<thead>
+<tr>
+<th class="left">Dátum</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+<div class="muted" style="margin-top:8px">
+<b>Színek:</b>
+<span style="color:#ef4444">Piros</span> – nincs beosztott;
+      <span style="color:#c2410c">sötét narancs</span> – kevés beosztott;
+      <span style="color:#a16207">sárga</span> – felülvizsgálandó létszám;
+      <span style="color:#16a34a">zöld</span> – megfelelő.
+      <br/>A táblázat 09:00-tól 08:00-ig megy, és csak a napi nyitvatartási sávban színezünk (+1 óra előtte/utána).
+    </div>
+</div>
+</div>
+</div><!-- /panelMain -->
+<div class="hidden" id="panelAdmin">
+<div class="card">
+<h2 style="margin:0 0 8px 0">Munkatársak kezelése</h2>
+<div class="row">
+<input id="adminNewEmp" placeholder="Új munkatárs neve"/>
+<input id="adminWage" min="0" placeholder="Órabér (opcionális)" step="50" type="number"/>
+<button id="adminAddEmp">Hozzáadás</button>
+</div>
+<div class="admin-toolbar">
+<button id="empEditBtn">Szerkesztés</button>
+<button class="hidden" id="empSaveBtn">Mentés</button>
+<button class="hidden" id="empCancelBtn">Mégse</button>
+</div>
+<div style="overflow:auto">
+<table class="clean" id="adminEmpTable">
+<thead><tr><th>Név</th><th>Órabér (HUF)</th><th>Törlés</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+<div class="card">
+<h2 style="margin:0 0 8px 0">Munkakörök kezelése</h2>
+<div class="row">
+<input id="adminNewRole" placeholder="Új munkakör"/>
+<button id="adminAddRole">Hozzáadás</button>
+</div>
+<div class="admin-toolbar">
+<button id="roleEditBtn">Szerkesztés</button>
+<button class="hidden" id="roleSaveBtn">Mentés</button>
+<button class="hidden" id="roleCancelBtn">Mégse</button>
+</div>
+<div style="overflow:auto">
+<table class="clean" id="adminRoleTable">
+<thead><tr><th>Munkakör</th><th>Törlés</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+</div><!-- /panelAdmin -->
+<script>
+(function(){
+  // THEME: load & bind
+  const THEME_KEY = 'theme_v1';
+  function applyTheme(t){
+    if(!t) return;
+    document.documentElement.setAttribute('data-theme', t);
+    document.querySelectorAll('.theme-dot').forEach(b=>{
+      b.classList.toggle('is-active', b.dataset.theme===t);
+    });
+  }
+  const stored = localStorage.getItem(THEME_KEY) || 'lightmint';
+  applyTheme(stored);
+  document.querySelectorAll('.theme-dot').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const t = btn.dataset.theme;
+      localStorage.setItem(THEME_KEY, t);
+      applyTheme(t);
+    });
+  });
+})();
+</script>
+<script>
+(function(){
+  // --- Utilities ---
+  // === Cloud (Netlify Blobs) helpers ===
+  async function blobGet(){
+    try{
+      const res = await fetch('/.netlify/functions/state-get', { cache:'no-store' });
+      if(!res.ok) return null;
+      return await res.json();
+    }catch(e){ return null; }
+  }
+  async function blobSet(state){
+    try{
+      await fetch('/.netlify/functions/state-set', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify(state)
+      });
+    }catch(e){ /* offline or not configured */ }
+  }
+  // Merge cloud -> local; if cloud empty, push local -> cloud (first run)
+  async function cloudLoadMerge(){
+    const cloud = await blobGet();
+    if (cloud && Object.keys(cloud).length){
+      employees   = cloud.employees   || employees;
+      roles       = cloud.roles       || roles;
+      shifts      = cloud.shifts      || shifts;
+      weekStart   = cloud.weekStart   || weekStart;
+      defOpenFrom = cloud.defOpenFrom || defOpenFrom;
+      daySettings = cloud.daySettings || daySettings;
+      // mirror back to local for offline
+      try{
+        localStorage.setItem('emp_v2', JSON.stringify(employees));
+        localStorage.setItem('roles_v1', JSON.stringify(roles));
+        localStorage.setItem('shifts_v1', JSON.stringify(shifts));
+        localStorage.setItem('weekStart_v1', weekStart);
+        localStorage.setItem('opening_def_from', defOpenFrom);
+        localStorage.setItem('opening_def_to', defOpenTo);
+        localStorage.setItem('opening_daily_v1', JSON.stringify(daySettings));
+      }catch{}
+      renderAll();
+    }else{
+      // no cloud yet -> seed from local current state
+      const state = { employees, roles, shifts, weekStart, defOpenFrom, daySettings };
+      blobSet(state);
+    }
+  }
+
+  function hunWeekdayFromISO(iso){
+    // iso: YYYY-MM-DD
+    const d = new Date(iso + 'T00:00:00');
+    const names = ['Vasárnap','Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat'];
+    return names[d.getDay()];
+  }
+
+  // Force selected date to Monday (ISO)
+  function toMondayISO(iso){
+    if(!iso) return iso;
+    const d = new Date(iso + 'T00:00:00');
+    return toISO(startOfWeekMon(d)); // hétfőre igazít
+  }
+
+  const pad = (n)=>String(n).padStart(2,'0');
+  const toISO = (d)=> d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const startOfWeekMon = (date=new Date())=>{ const d=new Date(date); d.setHours(0,0,0,0); const day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); return d; };
+  const addDays=(d,n)=>{const x=new Date(d); x.setDate(x.getDate()+n); return x;};
+  const parseTime=(t)=>{ if(!t) return 0; const [h,m]=t.split(':').map(Number); return h+m/60; };
+  const parseHour=(t)=>{ if(!t) return 0; const [h]=t.split(':').map(Number); return h; };
+  const hoursBetween=(a,b)=>{ let x=parseTime(a), y=parseTime(b); let d=y-x; if(d<0) d+=24; return +d.toFixed(2); };
+  const overlapsHour=(a,b,h)=>{ const s=parseTime(a), e=parseTime(b); if(s===e) return false; if(e>s) return s < h+1 && e > h; return s < h+1 || e > h; };
+  const hoursOrder = [...Array(24).keys()].slice(9).concat([...Array(24).keys()].slice(0,9));
+  const DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
+  const DAYS = {mon:'Hétfő',tue:'Kedd',wed:'Szerda',thu:'Csütörtök',fri:'Péntek',sat:'Szombat',sun:'Vasárnap'};
+
+  // --- State (localStorage) ---
+  let employees = [];
+  let roles = ['Bartender','Felszolgáló','Hostess'];
+  let shifts = [];
+  let weekStart = toISO(startOfWeekMon(new Date()));
+  let defOpenFrom = '11:00', defOpenTo = '00:00';
+  let daySettings = {sun:{enabled:false,open:'',close:''},mon:{enabled:false,open:'',close:''},tue:{enabled:false,open:'',close:''},wed:{enabled:false,open:'',close:''},thu:{enabled:false,open:'',close:''},fri:{enabled:false,open:'',close:''},sat:{enabled:false,open:'',close:''}};
+
+  function load(){
+    try{ employees = JSON.parse(localStorage.getItem('emp_v2')||'[]')||[]; }catch{}
+    try{ const r = JSON.parse(localStorage.getItem('roles_v1')||'[]'); if(Array.isArray(r)&&r.length) roles=r; }catch{}
+    try{ shifts = JSON.parse(localStorage.getItem('shifts_v1')||'[]')||[]; }catch{}
+    try{ const w = localStorage.getItem('weekStart_v1'); if(w) weekStart=w; }catch{}
+    try{ const a = localStorage.getItem('opening_def_from'); if(a) defOpenFrom=a; }catch{}
+    try{ const b = localStorage.getItem('opening_def_to'); if(b) defOpenTo=b; }catch{}
+    try{ const d = JSON.parse(localStorage.getItem('opening_daily_v1')||'{}'); if(d && typeof d==='object') daySettings=Object.assign(daySettings,d); }catch{}
+  }
+  function save(){
+    try{ localStorage.setItem('emp_v2', JSON.stringify(employees)); }catch{}
+    try{ localStorage.setItem('roles_v1', JSON.stringify(roles)); }catch{}
+    try{ localStorage.setItem('shifts_v1', JSON.stringify(shifts)); }catch{}
+    try{ localStorage.setItem('weekStart_v1', weekStart); }catch{}
+    try{ localStorage.setItem('opening_def_from', defOpenFrom); }catch{}
+    try{ localStorage.setItem('opening_def_to', defOpenTo); }catch{}
+    try{ localStorage.setItem('opening_daily_v1', JSON.stringify(daySettings)); }catch{}
+  }
+
+  // DOM refs
+  const elDefFrom = document.getElementById('defOpenFrom');
+  const elDefTo = document.getElementById('defOpenTo');
+  const elDaySel = document.getElementById('daySelector');
+  const elDayEnable = document.getElementById('dayEnable');
+  const elDayFrom = document.getElementById('dayFrom');
+  const elDayTo = document.getElementById('dayTo');
+  const elSaveDay = document.getElementById('saveDay');
+
+  const elWeek = document.getElementById('weekStart');
+  const elEmpSel = document.getElementById('emp');
+  const elRoleSel = document.getElementById('role');
+  const elDate = document.getElementById('date');
+  const elStart = document.getElementById('start');
+  const elEnd = document.getElementById('end');
+  const elAddShift = document.getElementById('addShift');
+  const elNewEmp = document.getElementById('newEmp');
+  const elWage = document.getElementById('wage');
+  const elAddEmp = document.getElementById('addEmp');
+  const elEmpList = document.getElementById('empList');
+  const elNewRole = document.getElementById('newRole');
+  const elAddRole = document.getElementById('addRole');
+  const elRoleList= document.getElementById('roleList');
+  const elShiftTBody = document.querySelector('#shiftTable tbody');
+  const elHeadThead = document.querySelector('#headTable thead tr');
+  const elHeadTBody = document.querySelector('#headTable tbody');
+
+  // Helpers
+  function keyToDow(key){ return {sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6}[key]; }
+  function inHighlight(h, dow){
+    const key = ['sun','mon','tue','wed','thu','fri','sat'][dow];
+    let openH = parseHour(defOpenFrom), closeH = parseHour(defOpenTo);
+    const set = daySettings[key];
+    if(set && set.enabled){
+      if(set.open) openH = parseHour(set.open);
+      if(set.close) closeH = parseHour(set.close);
+    }
+    const startH = (openH - 1 + 24) % 24;
+    const endH = (closeH + 1) % 24;
+    if (endH > startH) return h >= startH && h <= endH;
+    return h >= startH || h <= endH;
+  }
+
+  // Renders
+  function renderSelectors(){
+    elEmpSel.innerHTML = '<option value=\"\">Munkatárs</option>' + employees.map(e=>`<option>${e.name}</option>`).join('');
+    elRoleSel.innerHTML = '<option value=\"\">Munkakör</option>' + roles.map(r=>`<option>${r}</option>`).join('');
+  }
+  function renderEmpList(){
+    elEmpList.textContent = `${employees.length} munkatárs regisztrálva`;
+  }
+  function renderRoleList(){ elRoleList.textContent = roles.join(' | '); }
+
+  function renderShiftTable(){
+    const start = new Date(weekStart+'T00:00:00'); 
+    const days = Array.from({length:7},(_,i)=>addDays(start,i));
+    elShiftTBody.innerHTML='';
+    for(const d of days){
+      const iso = toISO(d); 
+      const hunDay = hunWeekdayFromISO(iso);
+      const dayShifts = shifts.filter(s=>s.dateISO===iso);
+      if(dayShifts.length===0){
+        const tr=document.createElement('tr'); 
+        tr.innerHTML=`<td class="left">${iso}</td><td class="left">${hunDay}</td><td class="left" colspan="5" style="opacity:.6">Nincs beosztás</td>`; 
+        elShiftTBody.appendChild(tr); 
+        continue; 
+      }
+      dayShifts.forEach((s, idx)=>{ 
+        const tr=document.createElement('tr'); 
+        tr.innerHTML=`
+          ${idx===0 ? `<td class="left">${iso}</td><td class="left">${hunDay}</td>` : `<td></td><td></td>`}
+          <td class="left">${s.employee}</td>
+          <td class="left"><select data-act="role"><option value="">Munkakör</option>${roles.map(r=>`<option ${r===s.role?'selected':''}>${r}</option>`).join('')}</select></td>
+          <td><input type="time" value="${s.start}" data-act="start"></td>
+          <td><input type="time" value="${s.end}" data-act="end"></td>
+          <td>${hoursBetween(s.start,s.end)}</td>
+          <td><button data-act="del">Törlés</button></td>`;
+        tr.querySelector('[data-act="role"]').addEventListener('change', e=>{ s.role=e.target.value; save(); renderAll(); });
+        tr.querySelector('[data-act="start"]').addEventListener('change', e=>{ s.start=e.target.value; save(); renderAll(); });
+        tr.querySelector('[data-act="end"]').addEventListener('change', e=>{ s.end=e.target.value; save(); renderAll(); });
+        tr.querySelector('[data-act="del"]').addEventListener('click', ()=>{ shifts=shifts.filter(x=>x!==s); save(); renderAll(); });
+        elShiftTBody.appendChild(tr);
+      });
+    }
+  }
+
+  function renderHeadTable(){
+    elHeadThead.innerHTML = '<th class="left">Dátum</th>' + hoursOrder.map(h=>`<th>${pad(h)}:00–${pad((h+1)%24)}:00</th>`).join('');
+    const start = new Date(weekStart+'T00:00:00'); const days = Array.from({length:7},(_,i)=>addDays(start,i));
+    elHeadTBody.innerHTML='';
+    const headByDay={}; for(const d of days) headByDay[toISO(d)] = Array.from({length:24},()=>0);
+    for(const s of shifts){ if(!headByDay[s.dateISO]) continue; for(let h=0;h<24;h++) if(overlapsHour(s.start,s.end,h)) headByDay[s.dateISO][h]++; }
+    for(const d of days){
+      const iso=toISO(d); const dow=d.getDay();
+      const tr=document.createElement('tr'); tr.appendChild(Object.assign(document.createElement('td'), {className:'left',textContent:iso,style:'font-weight:600'}));
+      for(const h of hoursOrder){ const c=headByDay[iso][h]; const td=document.createElement('td'); td.textContent=c; if(inHighlight(h,dow)) td.className=(c===0?'c0':c===1?'c1':c===2?'c2':'c3'); tr.appendChild(td); }
+      elHeadTBody.appendChild(tr);
+    }
+  }
+
+  function renderDayEditor(){
+    const key = elDaySel.value;
+    const enabled = key && daySettings[key]?.enabled;
+    elDayEnable.disabled = !key;
+    elDayFrom.disabled = !key || !enabled;
+    elDayTo.disabled = !key || !enabled;
+    elSaveDay.disabled = !key;
+    if(!key) return;
+    elDayEnable.checked = !!enabled;
+    elDayFrom.value = daySettings[key].open || '';
+    elDayTo.value = daySettings[key].close || '';
+  }
+
+  
+  // --- Tabs ---
+  const panelMain = document.getElementById('panelMain');
+  const panelAdmin = document.getElementById('panelAdmin');
+  const tabMain = document.getElementById('tabMain');
+  const tabAdmin = document.getElementById('tabAdmin');
+
+  function showTab(which){
+    if(which==='admin'){
+      panelMain.classList.add('hidden'); panelAdmin.classList.remove('hidden');
+      tabAdmin.classList.add('active'); tabMain.classList.remove('active');
+      renderAdmin();
+    }else{
+      panelAdmin.classList.add('hidden'); panelMain.classList.remove('hidden');
+      tabMain.classList.add('active'); tabAdmin.classList.remove('active');
+    }
+  }
+  tabMain.addEventListener('click', ()=>showTab('main'));
+  tabAdmin.addEventListener('click', ()=>showTab('admin'));
+
+  // --- Admin Refs ---
+  const elAdminNewEmp = document.getElementById('adminNewEmp');
+  const elAdminWage = document.getElementById('adminWage');
+  const elAdminAddEmp = document.getElementById('adminAddEmp');
+  const elAdminEmpTBody = document.querySelector('#adminEmpTable tbody');
+  const elEmpEditBtn = document.getElementById('empEditBtn');
+  const elEmpSaveBtn = document.getElementById('empSaveBtn');
+  const elEmpCancelBtn = document.getElementById('empCancelBtn');
+
+  const elAdminNewRole = document.getElementById('adminNewRole');
+  const elAdminAddRole = document.getElementById('adminAddRole');
+  const elAdminRoleTableBody = document.querySelector('#adminRoleTable tbody');
+  const elRoleEditBtn = document.getElementById('roleEditBtn');
+  const elRoleSaveBtn = document.getElementById('roleSaveBtn');
+  const elRoleCancelBtn = document.getElementById('roleCancelBtn');
+
+  let empEditMode = false;
+  let empSnapshot = null;
+
+  function renderAdminEmpTable(){
+    elAdminEmpTBody.innerHTML = '';
+    employees.forEach((e, idx)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" value="${e.name||''}" data-idx="${idx}" data-field="name" ${empEditMode?'':'disabled'} style="width:100%"></td>
+        <td><input type="number" min="0" step="50" value="${e.wage==null?'':e.wage}" data-idx="${idx}" data-field="wage" ${empEditMode?'':'disabled'} style="width:120px"></td>
+        <td><button data-act="del" data-idx="${idx}" ${empEditMode?'':'disabled'}>Törlés</button></td>
+      `;
+      tr.querySelector('[data-act="del"]').addEventListener('click', (ev)=>{
+        const i = Number(ev.target.dataset.idx);
+        employees.splice(i,1);
+        save(); renderAdmin();
+        renderAll();
+      });
+      elAdminEmpTBody.appendChild(tr);
+    });
+  }
+
+  let roleEditMode = false;
+  let roleSnapshot = null;
+  function renderAdminRoles(){
+    elAdminRoleTableBody.innerHTML = '';
+    roles.forEach((r, idx)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" value="${r}" data-idx="${idx}" ${roleEditMode?'':'disabled'} style="width:100%"></td>
+        <td><button data-act="del" data-idx="${idx}" ${roleEditMode?'':'disabled'}>Törlés</button></td>
+      `;
+      tr.querySelector('[data-act="del"]').addEventListener('click', (ev)=>{
+        const i = Number(ev.target.dataset.idx);
+        roles.splice(i,1);
+        save(); renderAdmin(); renderAll();
+      });
+      elAdminRoleTableBody.appendChild(tr);
+    });
+  }
+  function toggleRoleToolbar(){
+    elRoleEditBtn.classList.toggle('hidden', roleEditMode);
+    elRoleSaveBtn.classList.toggle('hidden', !roleEditMode);
+    elRoleCancelBtn.classList.toggle('hidden', !roleEditMode);
+  }
+
+  function renderAdmin(){
+    renderAdminEmpTable();
+    renderAdminRoles();
+    // toggle buttons by mode - employees
+    elEmpEditBtn.classList.toggle('hidden', empEditMode);
+    elEmpSaveBtn.classList.toggle('hidden', !empEditMode);
+    elEmpCancelBtn.classList.toggle('hidden', !empEditMode);
+    // toggle buttons by mode - roles
+    toggleRoleToolbar();
+  }
+
+  // Add employee (admin)
+  elAdminAddEmp.addEventListener('click', ()=>{
+    const name = (elAdminNewEmp.value||'').trim();
+    const wageStr = (elAdminWage.value||'').trim();
+    if(!name) return;
+    const wage = wageStr===''? null : Number(wageStr);
+    if(!employees.find(x=>x.name===name)) employees.push({name, wage});
+    elAdminNewEmp.value=''; elAdminWage.value='';
+    save(); renderAdmin(); renderAll();
+  });
+
+  // Add role (admin)
+  elAdminAddRole.addEventListener('click', ()=>{
+    const r = (elAdminNewRole.value||'').trim();
+    if(!r) return;
+    if(!roles.includes(r)) roles.push(r);
+    elAdminNewRole.value='';
+    save(); renderAdmin(); renderAll();
+  });
+
+  // Edit / Save / Cancel
+  elEmpEditBtn.addEventListener('click', ()=>{
+    empSnapshot = JSON.parse(JSON.stringify(employees));
+    empEditMode = true;
+    renderAdmin();
+  });
+
+  elEmpCancelBtn.addEventListener('click', ()=>{
+    if(empSnapshot) employees = JSON.parse(JSON.stringify(empSnapshot));
+    empEditMode = false;
+    renderAdmin(); renderAll(); save();
+  });
+
+  elEmpSaveBtn.addEventListener('click', ()=>{
+    // read values back from inputs
+    const rows = elAdminEmpTBody.querySelectorAll('tr');
+    rows.forEach((tr, i)=>{
+      const nameInp = tr.querySelector('input[data-field="name"]');
+      const wageInp = tr.querySelector('input[data-field="wage"]');
+      const name = (nameInp.value||'').trim();
+      const wageStr = (wageInp.value||'').trim();
+      employees[i].name = name;
+      employees[i].wage = wageStr===''? null : Number(wageStr);
+    });
+    empEditMode = false;
+    save(); renderAdmin(); renderAll();
+  });
+
+  // Roles: Edit / Save / Cancel
+  elRoleEditBtn.addEventListener('click', ()=>{
+    roleSnapshot = JSON.parse(JSON.stringify(roles));
+    roleEditMode = true;
+    renderAdmin();
+  });
+  elRoleCancelBtn.addEventListener('click', ()=>{
+    if(roleSnapshot) roles = JSON.parse(JSON.stringify(roleSnapshot));
+    roleEditMode = false;
+    save(); renderAdmin(); renderAll();
+  });
+  elRoleSaveBtn.addEventListener('click', ()=>{
+    // Read values back from inputs
+    const rows = elAdminRoleTableBody.querySelectorAll('tr');
+    const newRoles = [];
+    rows.forEach(tr=>{
+      const inp = tr.querySelector('input');
+      const val = (inp.value||'').trim();
+      if(val) newRoles.push(val);
+    });
+    roles = newRoles;
+    roleEditMode = false;
+    save(); renderAdmin(); renderAll();
+  });
+
+
+  function renderAll(){
+    elDefFrom.value = defOpenFrom; elDefTo.value = defOpenTo;
+    elWeek.value = weekStart; elDate.value = weekStart;
+    renderSelectors(); renderEmpList(); renderRoleList();
+    renderShiftTable(); renderHeadTable(); renderDayEditor();
+  }
+
+  // Init
+  load(); cloudLoadMerge(); if(employees.length===0){ employees.push({name:'Minta János', wage:null}); } save(); weekStart = toMondayISO(weekStart); renderAll();
+
+  // Events
+  elDefFrom.addEventListener('change', ()=>{ defOpenFrom=elDefFrom.value; save(); renderAll(); });
+  elDefTo.addEventListener('change',   ()=>{ defOpenTo=elDefTo.value;   save(); renderAll(); });
+  elDaySel.addEventListener('change', renderDayEditor);
+  elDayEnable.addEventListener('change', ()=>{ const k=elDaySel.value; if(!k) return; daySettings[k].enabled=elDayEnable.checked; save(); renderAll(); });
+  elDayFrom.addEventListener('change',  ()=>{ const k=elDaySel.value; if(!k) return; daySettings[k].open = elDayFrom.value; save(); renderAll(); });
+  elDayTo.addEventListener('change',    ()=>{ const k=elDaySel.value; if(!k) return; daySettings[k].close = elDayTo.value; save(); renderAll(); });
+  elSaveDay.addEventListener('click',   ()=>{ save(); renderAll(); });
+
+  document.getElementById('addRole').addEventListener('click', ()=>{
+    const r=(document.getElementById('newRole').value||'').trim(); if(!r) return; if(!roles.includes(r)) roles.push(r);
+    document.getElementById('newRole').value=''; save(); renderAll();
+  });
+  document.getElementById('addEmp').addEventListener('click', ()=>{
+    const name=(document.getElementById('newEmp').value||'').trim(); const wageStr=(document.getElementById('wage').value||'').trim();
+    if(!name) return; const wage = wageStr===''?null:Number(wageStr);
+    if(!employees.find(e=>e.name===name)) employees.push({name,wage});
+    document.getElementById('newEmp').value=''; document.getElementById('wage').value=''; save(); renderAll();
+  });
+  document.getElementById('addShift').addEventListener('click', ()=>{
+    const employee=elEmpSel.value, role=elRoleSel.value, dateISO=elDate.value, start=elStart.value, end=elEnd.value;
+    if(!employee||!role||!dateISO||!start||!end) return; shifts.push({id:crypto.randomUUID(), employee, role, dateISO, start, end}); save(); renderAll();
+  });
+  elWeek.addEventListener('change', ()=>{
+    if(!elWeek.value) return;
+    weekStart = toMondayISO(elWeek.value);
+    elWeek.value = weekStart; // azonnal hétfőt mutasson
+    save();
+    renderAll();
+  });
+  window.__exportState = () => ({ employees, shifts, weekStart, defOpenFrom, daySettings });
+})();</script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script>
+(function(){
+  function mondayISO(d=new Date()){
+    const x = new Date(d); x.setHours(0,0,0,0);
+    const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day);
+    return x.toISOString().slice(0,10);
+  }
+  function getState(){
+    if (window.__exportState) { try { return window.__exportState(); } catch(e){} }
+    return { employees: [], shifts: [], weekStart: mondayISO(), defOpenFrom: "11:00", daySettings: {} };
+  }
+  function rgb(hex){
+    const h = hex.replace('#','');
+    return { argb: ('FF' + h.toUpperCase()) };
+  }
+
+  async function exportScheduleStyled(){
+    if (typeof ExcelJS === 'undefined'){ alert('ExcelJS nem érhető el.'); return; }
+    const state = getState();
+    const { employees=[], shifts=[], weekStart, defOpenFrom="11:00", daySettings={} } = state;
+
+    const HUN_DAYS = ["Hétfő","Kedd","Szerda","Csütörtök","Péntek","Szombat","Vasárnap"];
+    const IDX_TO_KEY = {0:'mon',1:'tue',2:'wed',3:'thu',4:'fri',5:'sat',6:'sun'};
+    const start = new Date((weekStart||mondayISO()) + 'T00:00:00');
+    const days = Array.from({length:7}, (_,i)=> new Date(start.getFullYear(), start.getMonth(), start.getDate()+i));
+
+    // Colors
+    const darkOrange = '#C2410C';   // header days
+    const lightOrange = '#F59E0B';  // openings row + A2
+    const maroonA = '#7F1D1D';      // names A
+    const maroonB = '#581C1C';      // names B
+    const grayA = '#E5E7EB';        // light gray
+    const grayB = '#D1D5DB';        // darker gray
+    const white = '#FFFFFF';
+    const borderClr = 'FF9CA3AF';   // neutral border
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Beosztás', { properties: { defaultRowHeight: 18 } });
+
+    // Column widths (A names wider; B..H standard)
+    ws.columns = [
+      { header: '', key: 'name', width: 28 },
+      { header: HUN_DAYS[0], width: 14 },
+      { header: HUN_DAYS[1], width: 14 },
+      { header: HUN_DAYS[2], width: 14 },
+      { header: HUN_DAYS[3], width: 14 },
+      { header: HUN_DAYS[4], width: 14 },
+      { header: HUN_DAYS[5], width: 14 },
+      { header: HUN_DAYS[6], width: 14 },
+    ];
+
+    const thinBorder = { top:{style:'thin',color:{argb:borderClr}}, left:{style:'thin',color:{argb:borderClr}}, bottom:{style:'thin',color:{argb:borderClr}}, right:{style:'thin',color:{argb:borderClr}} };
+
+    // Row 1: Days in B1..H1 (A1 empty)
+    ws.getCell('A1').value = '';
+    for(let i=0;i<7;i++){
+      const cell = ws.getCell(1, 2+i);
+      cell.value = HUN_DAYS[i];
+      cell.fill = { type:'pattern', pattern:'solid', fgColor: rgb(darkOrange) };
+      cell.font = { bold:true, color: rgb(white) };
+      cell.alignment = { vertical:'middle', horizontal:'center' };
+      cell.border = thinBorder;
+    }
+
+    // Row 2: A2 "Nyitás" (orange), B2..H2 openings (orange)
+    ws.getCell('A2').value = 'Nyitás';
+    ws.getCell('A2').font = { bold:true, color: rgb(white) };
+    ws.getCell('A2').fill = { type:'pattern', pattern:'solid', fgColor: rgb(lightOrange) };
+    ws.getCell('A2').alignment = { vertical:'middle', horizontal:'center' };
+    ws.getCell('A2').border = thinBorder;
+
+    for(let i=0;i<7;i++){
+      const key = IDX_TO_KEY[i];
+      const ds = daySettings && daySettings[key];
+      const openStr = (ds && ds.enabled && ds.open) ? ds.open : (defOpenFrom||'');
+      const cell = ws.getCell(2, 2+i);
+      cell.value = openStr;
+      cell.fill = { type:'pattern', pattern:'solid', fgColor: rgb(lightOrange) };
+      cell.font = { bold:true };
+      cell.alignment = { vertical:'middle', horizontal:'center' };
+      cell.border = thinBorder;
+    }
+
+    // Rows 3+: names and day cells
+    const startRow = 3;
+    employees.forEach((emp, idx)=>{
+      const rowIndex = startRow + idx;
+      const nameCell = ws.getCell(rowIndex, 1);
+      nameCell.value = emp.name || '';
+      const maroon = (idx % 2 === 0) ? maroonA : maroonB;
+      nameCell.fill = { type:'pattern', pattern:'solid', fgColor: rgb(maroon) };
+      nameCell.font = { bold:true, color: rgb(white) };
+      nameCell.alignment = { vertical:'middle', horizontal:'left' };
+      nameCell.border = thinBorder;
+
+      // Alternating gray fill across B..H cells for this row
+      const rowGray = (idx % 2 === 0) ? grayA : grayB;
+
+      for(let d=0; d<7; d++){
+        const cell = ws.getCell(rowIndex, 2+d);
+        const iso = days[d].toISOString().slice(0,10);
+        const slots = (shifts||[]).filter(s => s.dateISO === iso && s.employee === emp.name)
+                                  .map(s => `${s.start}–${s.end}`);
+        cell.value = slots.join(', ');
+        cell.alignment = { vertical:'middle', horizontal:'center' };
+        cell.fill = { type:'pattern', pattern:'solid', fgColor: rgb(rowGray) };
+        cell.border = thinBorder;
+      }
+    });
+
+    // Download
+    const fname = `beosztas_${state.weekStart || mondayISO()}.xlsx`;
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function bindBtn(){
+    const btn = document.getElementById('exportXlsxBtn');
+    if (btn && !btn.__boundStyled){
+      btn.addEventListener('click', exportScheduleStyled);
+      btn.__boundStyled = true;
+    }
+  }
+  document.addEventListener('DOMContentLoaded', bindBtn);
+  setTimeout(bindBtn, 500);
+  setTimeout(bindBtn, 1500);
+})();
+</script>
+<div style="position: fixed; bottom: 10px; right: 10px; font-size: 14px; color: var(--muted); font-family: Arial, sans-serif; z-index: 9999;">
+    Shift Planner by Oliver Nguyen
+</div>
+</body>
+</html>
