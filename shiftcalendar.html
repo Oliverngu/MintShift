@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Órabér naptár</title>
+  <style>
+    :root{
+      /* base fallback (system light-ish) */
+      --bg:#f5f5f7; --card:#ffffff; --text:#0f172a; --muted:#6b7280; --primary:#0a84ff; --accent:#22c55e; --danger:#ef4444; --warn:#f59e0b; --border:#e5e7eb; --nodata:#f3f4f6; --selected: rgba(10,132,255,.18); --shadow:0 10px 24px rgba(2,6,23,.06); --badge:#eef2f7; --badge-text:#0f172a; --focus:0 0 0 3px rgba(10,132,255,.35); --wm-opacity:.08;
+    }
+
+[data-theme="coffee"]{
+  /* Black Coffee (dark, meleg barna skála) */
+  --bg:#120e0d; --dot:#cbb4a6; --dot-weekend:#e2725b; --card:#1b1615; --text:#e5e1dc; --muted:#a39c95; --primary:#5a4f4b; --accent:#c9c4b8; --danger:#e2725b; --warn:#d2ae6d; --border:#2a2321; --nodata:#141110; --selected: rgba(90,79,75,.25); --shadow:0 10px 24px rgba(0,0,0,.35); --badge:#26201e; --badge-text:#e5e1dc; --focus:0 0 0 3px rgba(90,79,75,.45); --wm-opacity:.50; --wm-color:#967259;
+}
+    
+[data-theme="coffee"] .day .wm {
+  color: var(--wm-color);
+}
+
+.day .wm{
+  position:absolute; right:8px; bottom:4px;
+  font-weight:900; line-height:1;
+  font-size:clamp(28px, 6.5vw, 56px);
+  color: currentColor; opacity: var(--wm-opacity);
+  pointer-events:none; user-select:none;
+}
+
+    [data-theme="mint"]{
+      /* Mint (pasztell zöld skála) az első paletta alapján */
+      --bg:#ecf7f0; --card:#ffffff; --text:#0b1b1c; --muted:#5b7a78; --primary:#5f8865; --accent:#98bb99; --danger:#ff7b7b; --warn:#ffb86b; --border:#d7e6da; --nodata:#f0f6f2; --selected: rgba(95,136,101,.18); --shadow:0 10px 24px rgba(6,24,22,.08); --badge:#e6f2eb; --badge-text:#0b1b1c; --focus:0 0 0 3px rgba(95,136,101,.35); --wm-opacity:.08;
+    }
+
+    [data-theme="system"]{
+      /* System (OS-hez igazodó) – alap: világos */
+      --bg:#f5f5f7; --card:#ffffff; --text:#0f172a; --muted:#6b7280; --primary:#0a84ff; --accent:#22c55e; --danger:#ef4444; --warn:#f59e0b; --border:#e5e7eb; --nodata:#f3f4f6; --selected: rgba(10,132,255,.18); --shadow:0 10px 24px rgba(2,6,23,.06); --badge:#eef2f7; --badge-text:#0f172a; --focus:0 0 0 3px rgba(10,132,255,.35); --wm-opacity:.08;
+    }
+    @media (prefers-color-scheme: dark){
+      [data-theme="system"]{
+        --bg:#0b0b0f; --card:#111113; --text:#e5e7eb; --muted:#9ca3af; --primary:#0a84ff; --accent:#34d399; --danger:#f87171; --warn:#fbbf24; --border:#26272b; --nodata:#141417; --selected: rgba(10,132,255,.25); --shadow:0 10px 24px rgba(0,0,0,.35); --badge:#1b1c20; --badge-text:#e5e7eb; --focus:0 0 0 3px rgba(10,132,255,.45); --wm-opacity:.12;
+      }
+    }
+
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Segoe UI, Roboto, Inter, system-ui, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
+    .container{max-width:1050px; margin:0 auto; padding:16px;}
+
+    .toolbar{display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px}
+    .brand{font-weight:800; letter-spacing:.2px;}
+    .grow{flex:1}
+
+    .card{background:var(--card); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow);}
+    .card.pad{padding:14px}
+
+    .seg{display:flex; gap:6px; background:var(--nodata); padding:6px; border-radius:14px; align-items:center}
+    .seg button{flex:1}
+
+    .btn{
+      -webkit-tap-highlight-color: transparent;
+      appearance:none; border:none; cursor:pointer; user-select:none;
+      padding:12px 14px; border-radius:14px; font-weight:600; font-size:14px;
+      background:var(--card); border:1px solid var(--border); color:var(--text); box-shadow:var(--shadow);
+    }
+    .btn:focus-visible{outline:none; box-shadow:var(--focus)}
+    .btn.primary{ background: var(--primary); color:white; border-color: transparent;}
+    .btn.ghost{ background: transparent; border:1px dashed var(--border)}
+    .btn.warn{ background: var(--warn); color:#1f1f1f; border-color:transparent}
+    .btn.danger{ background: var(--danger); color:white; border-color:transparent}
+    .btn.small{padding:8px 10px; font-size:13px}
+    .btn.switch[aria-pressed="true"]{ background: var(--primary); color:#fff; border-color: transparent; }
+
+    .grid{display:grid; gap:12px}
+    .calendar{display:grid; grid-template-rows:auto 1fr; gap:8px}
+
+    .cal-head{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; padding:10px 12px 2px 12px}
+    .cal-head .dow{font-weight:700; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; text-align:center}
+
+    .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; padding:8px 12px 12px 12px}
+
+    .day{
+      background:var(--card); border:1px solid var(--border); border-radius:14px; min-height:90px; position:relative; overflow:hidden; display:flex; flex-direction:column; padding:8px; gap:6px; transition:transform .05s ease;
+    }
+    .day.nodata{ background:var(--nodata); }
+    .day.dim{ opacity:.55 }
+    .day .num{font-weight:800; font-size:16px}
+    .day .earn{margin-top:auto; font-size:12px; color:var(--muted)}
+    .day .badge{position:absolute; right:8px; top:8px; font-size:11px; padding:2px 8px; background:var(--badge); color:var(--badge-text); border-radius:999px; border:1px solid var(--border)}
+    .day.selected{ outline:2.5px solid var(--selected); box-shadow: inset 0 0 0 2px var(--selected); transform: translateY(-1px);}
+    .today{ border:1.5px solid var(--primary) }
+
+    /* Vízjel (nagy, halvány napi szám) */
+    .day .wm{
+      position:absolute; right:8px; bottom:4px;
+      font-weight:900; line-height:1;
+      font-size:clamp(28px, 6.5vw, 56px);
+      color: currentColor; opacity: var(--wm-opacity);
+      pointer-events:none; user-select:none;
+    }
+
+ /* Minimal (dot) jelölés */
+.day .dot{
+  position:absolute; top:8px; right:8px;
+  width:9px; height:9px; border-radius:999px;
+  background:var(--dot);            /* ← eddig var(--primary) volt */
+  box-shadow:0 0 0 2px var(--card);
+}
+.day .dot.weekend{ background: var(--dot-weekend); }
+
+[data-theme="coffee"] .day .dot{ box-shadow:0 0 0 2px rgba(27,22,21,.9); }
+[data-theme="system"] .day .dot{ box-shadow:0 0 0 2px var(--card); }
+
+.day.compact .earn, .day.compact .badge{ display:none; }
+
+    .panel{display:grid; gap:12px}
+
+    .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .row .field{display:flex; flex-direction:column; gap:6px}
+    .field label{font-size:12px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.07em}
+    input,select{appearance:none; padding:12px 12px; background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:12px; font-size:14px; box-shadow:var(--shadow)}
+    input:focus-visible,select:focus-visible{outline:none; box-shadow:var(--focus)}
+
+    .tabs{display:flex; gap:8px; padding:8px; background:var(--nodata); border-radius:14px;}
+    .tabs button{flex:1}
+
+    .hidden{display:none !important}
+
+    .kpi{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+    .kpi .chip{background:var(--nodata); border:1px dashed var(--border); border-radius:14px; padding:10px 12px; font-weight:700;}
+
+    table{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:14px;}
+    thead th{font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); background:var(--nodata); padding:12px; text-align:left}
+    tbody td{padding:12px; border-bottom:1px solid var(--border)}
+    tfoot td{padding:12px; font-weight:800}
+
+    .footer{display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap}
+
+    @media (max-width: 768px){
+      .cal-grid .day{min-height:78px}
+      .kpi{grid-template-columns:1fr}
+      .toolbar{gap:8px}
+    }
+  </style>
+  <!-- XLSX export könyvtár -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.20.2/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="toolbar">
+      <div class="brand">📅 Naptár Shift Követő</div>
+      <div class="grow"></div>
+      <div class="row">
+        <div class="field">
+          <label>Téma</label>
+          <select id="themeSelect" aria-label="Téma választása">
+            <option value="mint">Mint</option>
+            <option value="coffee">Black Coffee</option>
+            <option value="system">System</option>
+          </select>
+        </div>
+        <button class="btn small" id="todayBtn">Ma</button>
+        <div class="row" style="gap:6px">
+          <button class="btn small" id="prevMonth">◀</button>
+          <button class="btn small" id="nextMonth">▶</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card pad">
+      <div class="tabs" role="tablist">
+        <button class="btn small" role="tab" aria-selected="true" data-tab="tab-calendar">Naptár</button>
+        <button class="btn small" role="tab" aria-selected="false" data-tab="tab-summary">Összefoglaló</button>
+        <button class="btn small" role="tab" aria-selected="false" data-tab="tab-presets">Beállítások & Presetek</button>
+      </div>
+
+      <!-- Calendar Tab -->
+      <section id="tab-calendar" class="grid" style="margin-top:10px">
+        <div class="row" style="justify-content:space-between; align-items:center">
+          <div id="monthLabel" style="font-weight:800; font-size:18px"></div>
+          <div class="row" style="gap:6px">
+            <button class="btn small switch" id="toggleCompact" aria-pressed="false" title="Minimal nézet váltása">Minimal nézet: KI</button>
+            <button class="btn small" id="selectAll">Minden nap kijelöl</button>
+            <button class="btn small" id="clearSelection">Kijelölés törlése</button>
+          </div>
+        </div>
+
+        <div class="calendar card">
+          <div class="cal-head">
+            <div class="dow">H</div>
+            <div class="dow">K</div>
+            <div class="dow">Sze</div>
+            <div class="dow">Cs</div>
+            <div class="dow">P</div>
+            <div class="dow">Szo</div>
+            <div class="dow">V</div>
+          </div>
+          <div class="cal-grid" id="calGrid" aria-live="polite"></div>
+        </div>
+
+        <div class="panel">
+          <div class="row" style="justify-content:space-between; align-items:flex-end">
+            <div class="field" style="min-width:220px">
+              <label>Kijelölt napok</label>
+              <div class="kpi">
+                <div class="chip">Darab: <span id="selCount">0</span></div>
+                <div class="chip">Összes: <span id="selTotals">0 óra · 0 Ft</span></div>
+              </div>
+            </div>
+            <div class="row" style="gap:8px">
+              <button class="btn warn" id="applyShift">Shift rögzítése a kijelölt napokra</button>
+            </div>
+          </div>
+
+          <div class="row" style="gap:16px; flex-wrap:wrap">
+            <div class="field">
+              <label>Kezdés</label>
+              <input type="time" id="startTime" value="09:00" />
+            </div>
+            <div class="field">
+              <label>Vég</label>
+              <input type="time" id="endTime" value="17:00" />
+            </div>
+            <div class="field">
+              <label>Preset</label>
+              <select id="presetPicker"><option value="">– Válassz presetet –</option></select>
+            </div>
+            <button class="btn" id="usePreset">Preset betöltése</button>
+          </div>
+
+          <div class="row" id="selectionInfo" style="margin-top:6px"></div>
+        </div>
+      </section>
+
+      <!-- Summary Tab -->
+      <section id="tab-summary" class="hidden" style="margin-top:10px">
+        <div class="panel">
+          <div class="row" style="justify-content:space-between; align-items:center">
+            <div style="font-weight:800; font-size:18px">Heti bontás & havi összesítő</div>
+            <div class="row" style="gap:6px">
+              <button class="btn small" id="recalcSummary">Frissítés</button>
+              <button class="btn small" id="exportXlsx">Export XLSX</button>
+            </div>
+          </div>
+          <div class="card pad">
+            <table>
+              <thead>
+                <tr>
+                  <th>Hét (ISO)</th>
+                  <th>Dátum intervallum</th>
+                  <th>Órák</th>
+                  <th>Összeg</th>
+                </tr>
+              </thead>
+              <tbody id="weeklyBody"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2">Havi összes</td>
+                  <td id="monthlyHours">0</td>
+                  <td id="monthlyPay">0 Ft</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Presets & Settings Tab -->
+      <section id="tab-presets" class="hidden" style="margin-top:10px">
+        <div class="panel">
+          <div class="card pad">
+            <div style="font-weight:800; font-size:18px; margin-bottom:8px">Beállítások</div>
+            <div class="row">
+              <div class="field">
+                <label>Alap órabér (HUF)</label>
+                <input type="number" id="baseRate" min="0" step="50" placeholder="pl. 3000" />
+              </div>
+              <div class="field">
+                <label>Alap szünet (perc)</label>
+                <input type="number" id="baseBreak" min="0" step="5" placeholder="pl. 30" />
+              </div>
+              <button class="btn primary" id="saveSettings">Mentés</button>
+            </div>
+          </div>
+
+          <div class="card pad">
+            <div style="font-weight:800; font-size:18px; margin-bottom:8px">Presets</div>
+            <div class="row" style="gap:16px; flex-wrap:wrap">
+              <div class="field"><label>Név</label><input type="text" id="pName" placeholder="pl. 09–17 30p"/></div>
+              <div class="field"><label>Kezdés</label><input type="time" id="pStart" value="09:00" /></div>
+              <div class="field"><label>Vég</label><input type="time" id="pEnd" value="17:00" /></div>
+              <div class="field"><label>Szünet (perc)</label><input type="number" id="pBreak" value="30" min="0" step="5"/></div>
+              <button class="btn" id="addPreset">Preset mentése</button>
+            </div>
+
+            <div class="row" style="align-items:flex-end; gap:10px; margin-top:8px">
+              <div class="field" style="min-width:220px">
+                <label>Meglévő presetek</label>
+                <select id="presetList" size="5" style="min-width:240px"></select>
+              </div>
+              <div class="row" style="gap:8px">
+                <button class="btn" id="loadToForm">Betöltés a formba</button>
+                <button class="btn danger" id="deletePreset">Törlés</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer" style="margin-top:12px">
+      <div style="color:var(--muted); font-size:12px">Minden adat lokálisan tárolva (localStorage). Offline is működik.</div>
+      <div class="row">
+        <button class="btn ghost small" id="exportJson">Export JSON</button>
+        <button class="btn ghost small" id="importJson">Import JSON</button>
+        <input type="file" id="importFile" accept="application/json" class="hidden" />
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ======= Adatmodell & segédek =======
+  const STORE_KEY = 'shiftAppData_v1';
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+
+  const HU_MONTHS = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
+
+  const state = {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(), // 0..11
+    selected: new Set(), // 'YYYY-MM-DD'
+    data: { settings: { baseRate: 3000, baseBreak: 30, theme: 'system', compactDays: false }, presets: [], shifts: {} }
+  };
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(raw){ state.data = JSON.parse(raw); }
+    }catch(e){ console.warn('Load hiba', e) }
+    // Init theme & base mirrors
+    document.body.setAttribute('data-theme', state.data.settings.theme || 'system');
+    $('#themeSelect').value = state.data.settings.theme || 'system';
+    $('#baseRate').value = state.data.settings.baseRate ?? 3000;
+    $('#baseBreak').value = state.data.settings.baseBreak ?? 30;
+    updateCompactButton();
+  }
+  function save(){
+    localStorage.setItem(STORE_KEY, JSON.stringify(state.data));
+  }
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function toKey(d){ return d.toISOString().slice(0,10); }
+  function fromKey(key){ return new Date(key + 'T00:00:00'); }
+
+  function isSameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}
+
+  function fmtMoney(n){ try{ return new Intl.NumberFormat('hu-HU', {style:'currency', currency:'HUF', maximumFractionDigits:0}).format(n||0) }catch{ return (n||0).toFixed(0) + ' Ft' } }
+
+  function diffHours(start,end,breakMin){
+    const [sh, sm] = start.split(':').map(Number);
+    const [eh, em] = end.split(':').map(Number);
+    let startMin = sh*60 + sm;
+    let endMin = eh*60 + em;
+    if(endMin < startMin){ endMin += 24*60; } // éjszakába nyúló műszak támogatás
+    let mins = Math.max(0, endMin - startMin - (parseInt(breakMin||0))); // ne legyen negatív
+    return mins/60;
+  }
+
+  function getISOWeek(d){
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    // csütörtöki szabály
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+    return Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+  }
+
+  function weekRangeFor(date){
+    // Hétfő–Vasárnap tartomány az adott dátumhoz (helyi idő szerint)
+    const d = new Date(date);
+    const day = (d.getDay()+6)%7; // 0=Hétfő
+    const monday = new Date(d); monday.setDate(d.getDate()-day);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+    const f = x => `${x.getFullYear()}.${pad(x.getMonth()+1)}.${pad(x.getDate())}`;
+    return `${f(monday)} – ${f(sunday)}`;
+  }
+
+  // ======= Render naptár =======
+  function render(){
+    // Hónap cím: 2025 Augusztus
+    $('#monthLabel').textContent = `${state.year} ${HU_MONTHS[state.month]}`;
+
+    const first = new Date(state.year, state.month, 1);
+    const last = new Date(state.year, state.month+1, 0);
+    const grid = $('#calGrid');
+    grid.innerHTML = '';
+
+    const startOffset = (first.getDay()+6)%7; // hétfő=0
+    const daysInMonth = last.getDate();
+
+    // leading empty cells
+    for(let i=0;i<startOffset;i++){
+      const ph = document.createElement('div');
+      ph.className = 'day dim';
+      ph.setAttribute('aria-hidden','true');
+      grid.appendChild(ph);
+    }
+
+    const today = new Date();
+
+    for(let d=1; d<=daysInMonth; d++){
+      const date = new Date(state.year, state.month, d);
+      const key = toKey(date);
+      const cell = document.createElement('button');
+      cell.type='button';
+      cell.className='day';
+      cell.setAttribute('data-key', key);
+      if(isSameDay(date, today)) cell.classList.add('today');
+
+      const shift = state.data.shifts[key];
+      const hasShift = !!shift;
+      cell.classList.toggle('nodata', !hasShift);
+
+      const num = document.createElement('div'); num.className='num'; num.textContent = `${d}.`;
+      const earn = document.createElement('div'); earn.className='earn';
+      if(hasShift){
+        const hrs = diffHours(shift.start, shift.end, shift.breakMins);
+        const pay = Math.round(hrs * (shift.rateAtEntry ?? state.data.settings.baseRate));
+        earn.textContent = `${hrs.toFixed(2)} ó · ${fmtMoney(pay)}`;
+      } else {
+        earn.textContent = '—';
+      }
+      const badge = document.createElement('div'); badge.className='badge'; badge.textContent = hasShift ? 'Rögzítve' : 'Nincs adat';
+      const wm = document.createElement('div'); wm.className='wm'; wm.textContent = d; // vízjeles szám
+
+      // Minimal (compact) mód
+      if(state.data.settings.compactDays){
+        cell.classList.add('compact');
+        if(hasShift){
+          const dot = document.createElement('div'); dot.className='dot'; cell.appendChild(dot);
+        }
+      }
+
+      cell.appendChild(num); cell.appendChild(badge); cell.appendChild(earn); cell.appendChild(wm);
+
+      cell.addEventListener('click', () => toggleSelect(key, cell));
+
+      if(state.selected.has(key)) cell.classList.add('selected');
+      grid.appendChild(cell);
+    }
+
+    refreshSelectionInfo();
+    refreshSummary();
+    populatePresetPickers();
+  }
+
+  function toggleSelect(key, el){
+    if(state.selected.has(key)) state.selected.delete(key); else state.selected.add(key);
+    el.classList.toggle('selected');
+    refreshSelectionInfo();
+  }
+
+  function clearSelection(){
+    state.selected.clear();
+    $$('#calGrid .day.selected').forEach(el=>el.classList.remove('selected'));
+    refreshSelectionInfo();
+  }
+
+  function selectAllInMonth(){
+    const first = new Date(state.year, state.month, 1);
+    const last = new Date(state.year, state.month+1, 0);
+    state.selected.clear();
+    for(let d=1; d<=last.getDate(); d++){
+      const key = toKey(new Date(state.year, state.month, d));
+      state.selected.add(key);
+    }
+    $$('#calGrid .day').forEach(el=>{
+      if(el.dataset.key){ el.classList.add('selected'); }
+    });
+    refreshSelectionInfo();
+  }
+
+  // ======= Presetek =======
+  function populatePresetPickers(){
+    const picker = $('#presetPicker');
+    const list = $('#presetList');
+    if(!picker || !list) return;
+    picker.innerHTML = '<option value="">– Válassz presetet –</option>';
+    list.innerHTML = '';
+    state.data.presets.forEach((p, idx)=>{
+      const opt = document.createElement('option');
+      opt.value = String(idx); opt.textContent = `${p.name}  (${p.start}–${p.end}, szünet ${p.breakMins}p)`;
+      picker.appendChild(opt);
+      const li = document.createElement('option');
+      li.value = String(idx); li.textContent = opt.textContent;
+      list.appendChild(li);
+    })
+  }
+
+  // ======= Kijelölés infó =======
+  function refreshSelectionInfo(){
+    $('#selCount').textContent = state.selected.size;
+    const info = $('#selectionInfo');
+    if(state.selected.size===0){ info.innerHTML = '<span style="color:var(--muted)">Nincs kijelölt nap.</span>'; $('#selTotals').textContent = '0 óra · 0 Ft'; return; }
+
+    const keys = [...state.selected].sort();
+    let totalH=0, totalPay=0;
+    keys.forEach(k=>{
+      const s = state.data.shifts[k];
+      if(s){
+        const h = diffHours(s.start,s.end,s.breakMins);
+        const p = h * (s.rateAtEntry ?? state.data.settings.baseRate);
+        totalH += h; totalPay += p;
+      }
+    })
+    $('#selTotals').textContent = `${totalH.toFixed(2)} óra · ${fmtMoney(Math.round(totalPay))}`;
+
+    if(keys.length===1){
+      const k = keys[0]; const s = state.data.shifts[k];
+      if(s){
+        const h = diffHours(s.start,s.end,s.breakMins);
+        const p = h * (s.rateAtEntry ?? state.data.settings.baseRate);
+        info.innerHTML = `<div class="kpi">
+          <div class="chip">${k}</div>
+          <div class="chip">${s.start}–${s.end} | Szünet ${s.breakMins}p</div>
+          <div class="chip">${h.toFixed(2)} óra</div>
+          <div class="chip">${fmtMoney(Math.round(p))}</div>
+        </div>`;
+      } else {
+        info.innerHTML = `<div class="kpi"><div class="chip">${k}</div><div class="chip">Nincs adat</div></div>`;
+      }
+    } else {
+      info.innerHTML = `<div class="kpi"><div class="chip">Kijelölt napok: ${keys[0]} … ${keys[keys.length-1]}</div></div>`;
+    }
+  }
+
+  // ======= Shift rögzítés =======
+  function applyShiftToSelection(){
+    if(state.selected.size===0) return;
+    const start = $('#startTime').value;
+    const end = $('#endTime').value;
+
+    // break: presetből ha választott, különben beállításból
+    let breakMins = state.data.settings.baseBreak ?? 0;
+    const idx = parseInt($('#presetPicker').value);
+    if(!Number.isNaN(idx)){
+      const p = state.data.presets[idx];
+      if(p && typeof p.breakMins === 'number') breakMins = p.breakMins;
+    }
+
+    const rate = parseInt(state.data.settings.baseRate || 0);
+
+    const hours = diffHours(start,end,breakMins);
+    if(hours <= 0){ alert('A számított óraszám nem pozitív. Ellenőrizd az időket és a szünetet.'); return; }
+
+    [...state.selected].forEach(k=>{
+      state.data.shifts[k] = { start, end, breakMins, rateAtEntry: rate };
+    })
+    save();
+    render();
+    clearSelection(); // automatikus törlés
+  }
+
+  // ======= Összefoglaló =======
+  function refreshSummary(){
+    const first = new Date(state.year, state.month, 1);
+    const last = new Date(state.year, state.month+1, 0);
+    const weekly = new Map();
+
+    for(let d=1; d<=last.getDate(); d++){
+      const date = new Date(state.year, state.month, d);
+      const key = toKey(date);
+      const s = state.data.shifts[key];
+      if(!s) continue;
+      const wk = getISOWeek(date);
+      const h = diffHours(s.start, s.end, s.breakMins);
+      const p = h * (s.rateAtEntry ?? state.data.settings.baseRate);
+      if(!weekly.has(wk)) weekly.set(wk, { hours:0, pay:0, dates: [] });
+      weekly.get(wk).hours += h;
+      weekly.get(wk).pay += p;
+      weekly.get(wk).dates.push(date);
+    }
+
+    const body = $('#weeklyBody'); body.innerHTML='';
+    let mHours=0, mPay=0;
+
+    const sortedWeeks = [...weekly.entries()].sort((a,b)=>a[0]-b[0]);
+    sortedWeeks.forEach(([wk, rec])=>{
+      mHours += rec.hours; mPay += rec.pay;
+      const tr = document.createElement('tr');
+      const range = rec.dates.length ? weekRangeFor(rec.dates[0]) : '';
+      tr.innerHTML = `<td>${wk}</td><td>${range}</td><td>${rec.hours.toFixed(2)}</td><td>${fmtMoney(Math.round(rec.pay))}</td>`;
+      body.appendChild(tr);
+    })
+
+    $('#monthlyHours').textContent = mHours.toFixed(2);
+    $('#monthlyPay').textContent = fmtMoney(Math.round(mPay));
+  }
+
+  // ======= XLSX export (havi) =======
+  function exportXlsxMonth(){
+    if(typeof XLSX === 'undefined'){ alert('Az XLSX exporthoz internetkapcsolat kell az egyszeri betöltéshez.'); return; }
+
+    const first = new Date(state.year, state.month, 1);
+    const last = new Date(state.year, state.month+1, 0);
+    const baseRate = state.data.settings.baseRate ?? 0;
+
+    // Heti aggregálás + napi részletek
+    const weekly = new Map();
+    const dailyRows = [];
+    let mHours = 0, mPay = 0;
+
+    for(let d=1; d<=last.getDate(); d++){
+      const date = new Date(state.year, state.month, d);
+      const key = toKey(date);
+      const s = state.data.shifts[key];
+      if(!s) continue;
+      const h = +diffHours(s.start, s.end, s.breakMins).toFixed(2);
+      const rate = s.rateAtEntry ?? baseRate;
+      const p = Math.round(h * rate);
+      mHours += h; mPay += p;
+
+      const wk = getISOWeek(date);
+      if(!weekly.has(wk)) weekly.set(wk, {hours:0, pay:0, dates: []});
+      weekly.get(wk).hours += h; weekly.get(wk).pay += p; weekly.get(wk).dates.push(date);
+
+      dailyRows.push([key, s.start, s.end, s.breakMins, h, p]);
+    }
+
+    dailyRows.sort((a,b)=> a[0].localeCompare(b[0]));
+
+    const weeklyRows = [...weekly.entries()].sort((a,b)=>a[0]-b[0]).map(([wk,rec])=>[
+      wk,
+      rec.dates.length? weekRangeFor(rec.dates[0]) : '',
+      +rec.hours.toFixed(2),
+      Math.round(rec.pay)
+    ]);
+
+    // Kijelölt napok (ha vannak)
+    const selRows = [];
+    let selH=0, selP=0;
+    if(state.selected.size){
+      [...state.selected].sort().forEach(k=>{
+        const s = state.data.shifts[k];
+        if(!s) return;
+        const h = +diffHours(s.start, s.end, s.breakMins).toFixed(2);
+        const p = Math.round(h * (s.rateAtEntry ?? baseRate));
+        selH += h; selP += p;
+        selRows.push([k, s.start, s.end, s.breakMins, h, p]);
+      });
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    const wsWeekly = XLSX.utils.aoa_to_sheet([
+      ['Hét (ISO)','Dátum intervallum','Órák','Összeg (Ft)'],
+      ...weeklyRows,
+      ['Havi összes','', +mHours.toFixed(2), Math.round(mPay)]
+    ]);
+    wsWeekly['!cols'] = [{wch:9},{wch:26},{wch:10},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, wsWeekly, 'Heti összefoglaló');
+
+    const wsDaily = XLSX.utils.aoa_to_sheet([
+      ['Dátum','Kezdés','Vég','Szünet (perc)','Órák','Összeg (Ft)'],
+      ...dailyRows
+    ]);
+    wsDaily['!cols'] = [{wch:12},{wch:8},{wch:8},{wch:12},{wch:8},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, wsDaily, 'Napi részletek');
+
+    if(selRows.length){
+      const wsSel = XLSX.utils.aoa_to_sheet([
+        ['Dátum','Kezdés','Vég','Szünet (perc)','Órák','Összeg (Ft)'],
+        ...selRows,
+        ['Összes kijelölt','','','', +selH.toFixed(2), Math.round(selP)]
+      ]);
+      wsSel['!cols'] = [{wch:12},{wch:8},{wch:8},{wch:12},{wch:10},{wch:14}];
+      XLSX.utils.book_append_sheet(wb, wsSel, 'Kijelölt napok');
+    }
+
+    const fname = `osszegzes_${state.year}-${String(state.month+1).padStart(2,'0')}.xlsx`;
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const blob = new Blob([wbout], {type:'application/octet-stream'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+  }
+
+  // ======= Import / Export =======
+  function exportData(){
+    const blob = new Blob([JSON.stringify(state.data, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `shift_data_${state.year}-${pad(state.month+1)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+  function importData(file){
+    const reader = new FileReader();
+    reader.onload = e => {
+      try{
+        const obj = JSON.parse(e.target.result);
+        if(!obj || !obj.settings || !obj.shifts){ alert('Érvénytelen fájl.'); return; }
+        state.data = obj; save(); render(); clearSelection();
+        // szinkronizáljuk UI-t
+        document.body.setAttribute('data-theme', state.data.settings.theme || 'system');
+        $('#themeSelect').value = state.data.settings.theme || 'system';
+        $('#baseRate').value = state.data.settings.baseRate ?? 3000;
+        $('#baseBreak').value = state.data.settings.baseBreak ?? 30;
+        updateCompactButton();
+      }catch(err){ alert('Nem sikerült beolvasni: '+err.message) }
+    };
+    reader.readAsText(file);
+  }
+
+  // ======= Események =======
+  function initTabs(){
+    $$('.tabs [role="tab"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        $$('.tabs [role="tab"]').forEach(b=>b.setAttribute('aria-selected','false'));
+        btn.setAttribute('aria-selected','true');
+        const id = btn.dataset.tab;
+        ['tab-calendar','tab-summary','tab-presets'].forEach(t=>$('#'+t).classList.add('hidden'));
+        $('#'+id).classList.remove('hidden');
+        if(id==='tab-summary') refreshSummary();
+        if(id==='tab-presets') populatePresetPickers();
+      });
+    })
+  }
+
+  function updateCompactButton(){
+    const btn = document.getElementById('toggleCompact');
+    if(!btn) return;
+    const on = !!(state.data.settings && state.data.settings.compactDays);
+    btn.setAttribute('aria-pressed', on);
+    btn.textContent = `Minimal nézet: ${on ? 'BE' : 'KI'}`;
+  }
+
+  function init(){
+    load();
+    initTabs();
+    render();
+
+    document.getElementById('toggleCompact').addEventListener('click', ()=>{
+      state.data.settings.compactDays = !state.data.settings.compactDays;
+      save(); updateCompactButton(); render();
+    });
+
+    $('#prevMonth').addEventListener('click', ()=>{ if(state.month===0){state.month=11; state.year--;} else state.month--; render(); clearSelection(); });
+    $('#nextMonth').addEventListener('click', ()=>{ if(state.month===11){state.month=0; state.year++;} else state.month++; render(); clearSelection(); });
+    $('#todayBtn').addEventListener('click', ()=>{ const now = new Date(); state.year=now.getFullYear(); state.month=now.getMonth(); render(); });
+
+    $('#selectAll').addEventListener('click', selectAllInMonth);
+    $('#clearSelection').addEventListener('click', clearSelection);
+
+    $('#applyShift').addEventListener('click', applyShiftToSelection);
+
+    $('#recalcSummary').addEventListener('click', refreshSummary);
+    $('#exportXlsx').addEventListener('click', exportXlsxMonth);
+
+    // Settings
+    $('#saveSettings').addEventListener('click', ()=>{
+      const rate = parseInt($('#baseRate').value||'0');
+      const br = parseInt($('#baseBreak').value||'0');
+      if(rate>=0){ state.data.settings.baseRate = rate; }
+      if(br>=0){ state.data.settings.baseBreak = br; }
+      save(); alert('Beállítások mentve.');
+    });
+
+    $('#themeSelect').addEventListener('change', (e)=>{
+      const theme = e.target.value; document.body.setAttribute('data-theme', theme);
+      state.data.settings.theme = theme; save();
+    });
+
+    // Preset műveletek
+    $('#addPreset').addEventListener('click', ()=>{
+      const name=$('#pName').value.trim(); const start=$('#pStart').value; const end=$('#pEnd').value; const br=parseInt($('#pBreak').value||'0');
+      if(!name){ alert('Adj nevet a presetnek.'); return; }
+      state.data.presets.push({name, start, end, breakMins: br}); save(); populatePresetPickers(); $('#pName').value='';
+    });
+    $('#deletePreset').addEventListener('click', ()=>{
+      const idx = parseInt($('#presetList').value);
+      if(Number.isNaN(idx)) return; state.data.presets.splice(idx,1); save(); populatePresetPickers();
+    });
+    $('#loadToForm').addEventListener('click', ()=>{
+      const idx = parseInt($('#presetList').value);
+      if(Number.isNaN(idx)) return; const p = state.data.presets[idx];
+      $('#startTime').value=p.start; $('#endTime').value=p.end; // break a beállításból/presetből megy alkalmazáskor
+    });
+    $('#usePreset').addEventListener('click', ()=>{
+      const idx = parseInt($('#presetPicker').value);
+      if(Number.isNaN(idx)) return; const p = state.data.presets[idx];
+      $('#startTime').value=p.start; $('#endTime').value=p.end; // break a presetből fog jönni rögzítéskor
+    });
+
+    // JSON import/export
+    $('#exportJson').addEventListener('click', exportData);
+    $('#importJson').addEventListener('click', ()=>$('#importFile').click());
+    $('#importFile').addEventListener('change', (e)=>{ const f=e.target.files?.[0]; if(f) importData(f); e.target.value=''; });
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
